@@ -3,7 +3,8 @@ from pathlib import Path
 PATIENT_NAME = "Mary Keller"
 AGENT_NAME = "Patient - Mary Keller"
 VOICE_ID = "cgSgspJ2msm6clMCkdW9"
-FIRST_MESSAGE = "Hello"
+# Empty: the patient waits for the therapist to speak first.
+FIRST_MESSAGE = ""
 PROMPT_PATH = Path(__file__).resolve().parent / "patient_prompt.txt"
 
 
