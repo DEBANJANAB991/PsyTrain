@@ -13,9 +13,13 @@ const SLIDERS = [
 ];
 
 /** Debug panel: emotion buttons, intensity, gaze, gestures and body-language sliders. */
-export function createDebugPanel(root, affect) {
+export function createDebugPanel(root, affect, voice = null) {
   root.hidden = false;
   root.innerHTML = `
+    <h3>Voice <span id="vstat" style="float:right;text-transform:none;letter-spacing:0;font-size:11px;opacity:.8"></span></h3>
+    <textarea id="vtext" rows="3" style="width:100%;box-sizing:border-box;border-radius:6px;border:1px solid #3a3f47;background:#22262c;color:inherit;padding:6px;font:inherit;font-size:13px">Hello doctor. I have had this pain in my chest for about three days now, and it gets worse when I climb the stairs.</textarea>
+    <div class="grid"><button id="vsay">Speak</button><button id="vstop">Stop</button></div>
+    <div id="vinfo" style="font-size:11px;opacity:.75;min-height:1.2em"></div>
     <h3>Emotion</h3>
     <div class="grid" id="emo"></div>
     <label>Intensity <span id="ival"></span><input id="intensity" type="range" min="0" max="1" step="0.05"></label>
@@ -36,6 +40,17 @@ export function createDebugPanel(root, affect) {
   for (const g of GAZES) mk(q('#gz'), g, { gaze: g }, () => affect.setAffect({ gaze: g }));
   for (const g of GESTURES.filter((x) => x !== 'none')) mk(q('#ge'), g, {}, () => affect.setAffect({ gesture: g }));
   for (const a of ['rest', 'clasped', 'crossed']) mk(q('#arms'), a, { arms: a }, () => affect.setAffect({ behavior: { arms: a } }));
+
+  if (voice) {
+    const vs = q('#vstat'), vi = q('#vinfo');
+    voice.checkStatus().then((st) => { vs.textContent = st.configured ? 'ElevenLabs ready' : 'demo voice (no API key)'; });
+    q('#vsay').onclick = async () => {
+      vi.textContent = 'working…';
+      try { const r = await voice.speak(q('#vtext').value); vi.textContent = r ? `${r.source} voice, ${r.seconds}s, ${r.words} words` : ''; }
+      catch (e) { vi.textContent = 'error: ' + e.message; }
+    };
+    q('#vstop').onclick = () => { voice.stop(); vi.textContent = 'stopped'; };
+  } else q('#vsay').parentElement.hidden = true;
 
   const slider = q('#intensity'), ival = q('#ival');
   slider.oninput = () => affect.setAffect({ intensity: parseFloat(slider.value) });

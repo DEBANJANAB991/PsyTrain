@@ -3,6 +3,7 @@ import { createPatient } from './patient.js';
 import { Affect } from './affect.js';
 import { BodyLanguage } from './bodylang.js';
 import { Gaze } from './gaze.js';
+import { Voice } from './voice.js';
 import { createDebugPanel } from './debug.js';
 import * as THREE from 'three';
 import * as cfg from './config.js';
@@ -11,7 +12,7 @@ const status = document.getElementById('status');
 const app = document.getElementById('app');
 const { renderer, scene, camera, patientAnchor, controls } = createScene(app);
 
-let head = null, affect = null, body = null, gaze = null;
+let head = null, affect = null, body = null, gaze = null, voice = null;
 
 (async () => {
   try {
@@ -28,14 +29,15 @@ let head = null, affect = null, body = null, gaze = null;
       c.getWorldPosition(v);
     });
     affect.gaze = gaze;
-    createDebugPanel(document.getElementById('debug'), affect);
+    voice = new Voice(head, affect);
+    createDebugPanel(document.getElementById('debug'), affect, voice);
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
     affect.snapToPose();
     status.textContent = 'Ready';
     setTimeout(() => (status.style.display = 'none'), 1500);
 
     // Public handle for console tuning, tests and the later ElevenLabs bridge (track B).
-    window.patient = { cfg, head, affect, body, gaze, setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
+    window.patient = { cfg, head, affect, body, gaze, voice, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
   } catch (err) {
     console.error(err);
     status.textContent = 'Failed to load patient: ' + err.message;

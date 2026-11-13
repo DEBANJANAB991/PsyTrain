@@ -59,6 +59,27 @@ window.patient.setAffect({
 Omitted fields keep their previous value. Picking a new `emotion` resets `behavior` overrides to that
 emotion's profile; `behavior: null` clears overrides. This is the shape for the ElevenLabs `set_affect` tool.
 
+## Voice + lip-sync (ElevenLabs)
+
+Put your key in `.env` (copy `.env.example`; `ELEVENLABS_API_KEY=...`), restart `npm run dev`, then use the **Voice**
+box at the top of the debug panel, or from the console: `await patient.say('Hello doctor, my chest hurts.')`.
+
+How it works:
+1. The browser calls `POST /api/voice/speak` on the dev server (`server/elevenlabs.js`). The server adds the key
+   (it never reaches the browser) and calls ElevenLabs text-to-speech **with timestamps**: audio + start/end time of
+   every character.
+2. `src/voice.js` groups the characters into words with millisecond timings and calls TalkingHead's `speakAudio()`.
+   TalkingHead turns each word into visemes (mouth shapes) spread over that word's real time span, and plays the audio.
+3. Without a key a built-in demo voice (synthetic buzz timed from the text) is used, so the mouth pipeline can still be tried.
+
+Settings in `.env`: `ELEVENLABS_VOICE_ID` (default: premade voice "Sarah"), `ELEVENLABS_MODEL`
+(default `eleven_flash_v2_5`; `eleven_multilingual_v2` is higher quality). Requests are capped at 500 characters and
+20 per minute, because a public tunnel link would otherwise let anyone spend your credits. Stop the tunnel when you
+are not testing. Only English lip-sync is loaded (`lipsyncModules: ['en']` in `src/patient.js`).
+
+For the full conversation (ElevenLabs Agents: speech in, LLM, speech out) the same two calls are the join point:
+stream the agent's audio + alignment into `head.streamAudio()` and map `set_affect` tool calls to `setAffect()`.
+
 ## Body language (configurable)
 
 Every emotion has a movement profile in `BEHAVIOR` (`src/config.js`); the effective values are the neutral
