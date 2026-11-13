@@ -18,7 +18,10 @@ export function createDebugPanel(root, affect, voice = null) {
   root.innerHTML = `
     <h3>Voice <span id="vstat" style="float:right;text-transform:none;letter-spacing:0;font-size:11px;opacity:.8"></span></h3>
     <textarea id="vtext" rows="3" style="width:100%;box-sizing:border-box;border-radius:6px;border:1px solid #3a3f47;background:#22262c;color:inherit;padding:6px;font:inherit;font-size:13px">Hello doctor. I have had this pain in my chest for about three days now, and it gets worse when I climb the stairs.</textarea>
-    <div class="grid"><button id="vsay">Speak</button><button id="vstop">Stop</button></div>
+    <div class="grid"><button id="vsay">Speak text</button><button id="vstop">Stop</button></div>
+    <button id="vtalk" style="width:100%">🎤 Talk (click, speak, click again)</button>
+    <label style="flex-direction:row;align-items:center;gap:6px">She says it in
+      <select id="vreply" style="flex:1;background:#22262c;color:inherit;border:1px solid #3a3f47;border-radius:6px;padding:4px"><option value="her">her voice</option><option value="mine">my voice</option></select></label>
     <div id="vinfo" style="font-size:11px;opacity:.75;min-height:1.2em"></div>
     <h3>Emotion</h3>
     <div class="grid" id="emo"></div>
@@ -50,6 +53,30 @@ export function createDebugPanel(root, affect, voice = null) {
       catch (e) { vi.textContent = 'error: ' + e.message; }
     };
     q('#vstop').onclick = () => { voice.stop(); vi.textContent = 'stopped'; };
+    const talk = q('#vtalk');
+    let tick = null;
+    talk.onclick = async () => {
+      try {
+        if (!voice.recording) {
+          voice.stop();
+          await voice.startRecording();
+          talk.textContent = '⏹ Stop and send';
+          talk.classList.add('active');
+          tick = setInterval(() => { vi.textContent = `recording… ${((performance.now() - voice.recStart) / 1000).toFixed(0)} s`; }, 250);
+          return;
+        }
+        clearInterval(tick);
+        talk.textContent = '🎤 Talk (click, speak, click again)'; talk.classList.remove('active');
+        vi.textContent = 'transcribing…';
+        const blob = await voice.stopRecording();
+        const r = await voice.sayRecording(blob, { replyIn: q('#vreply').value });
+        vi.textContent = r.text ? `you said: “${r.text}”` + (r.source !== 'none' ? ` → ${r.source}, ${r.seconds}s` : '') : 'did not catch anything, try again';
+      } catch (e) {
+        clearInterval(tick);
+        talk.textContent = '🎤 Talk (click, speak, click again)'; talk.classList.remove('active');
+        vi.textContent = 'error: ' + e.message;
+      }
+    };
   } else q('#vsay').parentElement.hidden = true;
 
   const slider = q('#intensity'), ival = q('#ival');

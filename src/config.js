@@ -42,6 +42,21 @@ export const AVATARS = {
     seatOffset: { x: 0, y: 0, z: -0.09 },
     eyeRange: { leftOut: 1.029, leftIn: 0.799, rightIn: 0.799, rightOut: 1.030, up: 0.548, down: 0.600 }
   },
+  // Photo-based AvatarSDK / MetaPerson male model, ARKit + Oculus visemes.
+  // Commercial service; this sample is for non-commercial use (https://avatarsdk.com).
+  avatarsdk: {
+    url: '/avatars/avatarsdk.glb',
+    body: 'M',
+    retarget: {
+      Neck: { z: -0.01, rx: -0.15 }, Neck1: { z: -0.01, rx: -0.15 }, Neck2: { z: -0.01, rx: -0.15 },
+      LeftShoulder: { rz: -0.3 }, RightShoulder: { rz: 0.3 },
+      scaleToEyesLevel: 1.0, origin: { y: -0.1 }
+    },
+    baseline: { headRotateX: -0.04, eyeBlinkLeft: 0.05, eyeBlinkRight: 0.05 },
+    seatedPose: {},
+    seatOffset: { x: 0, y: 0, z: -0.09 },
+    eyeRange: { leftOut: 0.600, leftIn: 0.628, rightIn: 0.627, rightOut: 0.598, up: 0.497, down: 0.738 }
+  },
   // MakeHuman / MPFB model (CC0). Lighter licence, more "game character" look.
   mpfb: {
     url: '/avatars/mpfb.glb',
@@ -52,8 +67,25 @@ export const AVATARS = {
     eyeRange: { leftOut: 0.644, leftIn: 0.628, rightIn: 0.623, rightOut: 0.656, up: 0.433, down: 0.54 }
   }
 };
-const avatarKey = new URLSearchParams(globalThis.location?.search ?? '').get('avatar');
-export const AVATAR_KEY = AVATARS[avatarKey] ? avatarKey : 'avaturn';
+
+// Patients = an avatar + optional visible conditions. Pick one with ?patient=<key> (debug panel has a
+// dropdown). Conditions:
+//   seat       'chair' (default) | 'wheelchair'
+//   facePaint  red paint on the face (fake blood / wound), see FACE_PAINT below; null = none
+export const PATIENTS = {
+  'young-woman':            { label: 'Young woman', avatar: 'avaturn' },
+  'young-man':              { label: 'Young man', avatar: 'avatarsdk' },
+  'man-wheelchair':         { label: 'Man in a wheelchair', avatar: 'avatarsdk', seat: 'wheelchair' },
+  'young-woman-face-paint': { label: 'Young woman, red paint on face', avatar: 'avaturn', facePaint: 'forehead-wound' },
+  'young-man-face-paint':   { label: 'Young man, red paint on face', avatar: 'avatarsdk', facePaint: 'forehead-wound' },
+  'mpfb-woman':             { label: 'MPFB woman (CC0)', avatar: 'mpfb' }
+};
+const params = new URLSearchParams(globalThis.location?.search ?? '');
+// ?avatar=<key> still works and means "that avatar, no conditions"
+export const PATIENT_KEY = PATIENTS[params.get('patient')] ? params.get('patient')
+  : (Object.keys(PATIENTS).find((k) => PATIENTS[k].avatar === params.get('avatar') && !PATIENTS[k].seat && !PATIENTS[k].facePaint) ?? 'young-woman');
+export const PATIENT = { seat: 'chair', facePaint: null, ...PATIENTS[PATIENT_KEY] };
+export const AVATAR_KEY = PATIENT.avatar;
 export const AVATAR = AVATARS[AVATAR_KEY];
 
 // ---------------------------------------------------------------------------------------------
@@ -293,4 +325,19 @@ export const EYE_STYLE = {
   dismissive: { yaw: [-0.80, 0.80], pitch: [0.0, 0.40], away: [0.8, 2.5], contact: [1.0, 3.0], head: 0.55, jitter: 0.015 },
   relieved:   { yaw: [-0.35, 0.35], pitch: [-0.10, 0.20], away: [0.8, 2.0], contact: [2.5, 7.0], head: 0.45, jitter: 0.012 },
   excited:    { yaw: [-0.45, 0.45], pitch: [-0.05, 0.30], away: [0.5, 1.4], contact: [2.5, 7.0], head: 0.50, jitter: 0.02 }
+};
+
+// ---------------------------------------------------------------------------------------------
+// Lip-sync (see lipsync.js). Raise these if the lips look too timid, lower them if they flap.
+//   gain            overall strength of the mouth shapes (1 = full)
+//   jawFromVoice    jaw opening that follows the loudness of the audio (0 = none)
+//   jawFromVowel    extra jaw opening on open vowels (aa, O ...)
+//   anticipation    ms the mouth starts forming a shape BEFORE its sound (real mouths lead the audio)
+//   release         ms to relax after a shape
+//   wordSpanScale   fraction of the word duration the shapes are spread over
+//   envHopMs        resolution of the loudness curve
+// ---------------------------------------------------------------------------------------------
+export const LIPSYNC = {
+  gain: 1.0, jawFromVoice: 0.22, jawFromVowel: 0.16,
+  anticipation: 70, release: 70, wordSpanScale: 0.92, envHopMs: 40
 };

@@ -68,14 +68,19 @@ How it works:
 1. The browser calls `POST /api/voice/speak` on the dev server (`server/elevenlabs.js`). The server adds the key
    (it never reaches the browser) and calls ElevenLabs text-to-speech **with timestamps**: audio + start/end time of
    every character.
-2. `src/voice.js` groups the characters into words with millisecond timings and calls TalkingHead's `speakAudio()`.
-   TalkingHead turns each word into visemes (mouth shapes) spread over that word's real time span, and plays the audio.
+2. `src/voice.js` groups the characters into words with millisecond timings. `src/lipsync.js` then schedules the mouth:
+   TalkingHead's English rules turn each word into visemes (mouth shapes), spread over that word's real time span at
+   near full strength, and the jaw (`jawOpen`) follows the loudness of the actual audio plus a little extra on open
+   vowels. The audio and this schedule go to TalkingHead together. (TalkingHead's own `speakAudio()` drives shapes at
+   only ~0.6, which looked like barely moving lips.) Tune `LIPSYNC` in `src/config.js`: `gain`, `jawFromVoice`,
+   `jawFromVowel`, `anticipation`.
 3. Without a key a built-in demo voice (synthetic buzz timed from the text) is used, so the mouth pipeline can still be tried.
 
 Settings in `.env`: `ELEVENLABS_VOICE_ID` (default: premade voice "Sarah"), `ELEVENLABS_MODEL`
 (default `eleven_flash_v2_5`; `eleven_multilingual_v2` is higher quality). Requests are capped at 500 characters and
 20 per minute, because a public tunnel link would otherwise let anyone spend your credits. Stop the tunnel when you
-are not testing. Only English lip-sync is loaded (`lipsyncModules: ['en']` in `src/patient.js`).
+are not testing. Only English lip-sync is loaded (`lipsyncModules: ['en']` in `src/patient.js`). TalkingHead caps its animation step at
+two frames, so below ~15 fps the mouth would lag the audio; on a normal laptop or the Vision Pro this does not happen.
 
 For the full conversation (ElevenLabs Agents: speech in, LLM, speech out) the same two calls are the join point:
 stream the agent's audio + alignment into `head.streamAudio()` and map `set_affect` tool calls to `setAffect()`.

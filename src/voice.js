@@ -1,3 +1,5 @@
+import { buildLipsync } from './lipsync.js';
+
 /**
  * Voice: text -> speech audio + timings -> TalkingHead lip-sync.
  *
@@ -53,6 +55,20 @@ export class Voice {
     return this.status;
   }
 
+  /** Play audio with lip-sync: our own (stronger) mouth schedule; falls back to TalkingHead's built-in one. */
+  _play(buffer, timing) {
+    this.lastTiming = timing;
+    let anim = null;
+    try { anim = buildLipsync(this.head, buffer, timing); } catch (e) { console.warn('[voice] lip-sync build failed, using the default', e); }
+    if (anim?.length) {
+      this.head.speechQueue.push({ audio: buffer, anim });
+      this.head.speechQueue.push({ break: 300 });
+      this.head.startSpeaking();
+    } else {
+      this.head.speakAudio({ audio: buffer, ...timing }, { lipsyncLang: 'en' });
+    }
+  }
+
   get speaking() { return Boolean(this.head.isSpeaking) || performance.now() < this.busyUntil; }
 
   /** Speak `text`. mode: 'auto' (ElevenLabs if configured, else demo) | 'elevenlabs' | 'demo'. */
@@ -82,7 +98,7 @@ export class Voice {
     }
 
     this.affect?.gaze?.lookAtStudent();         // she answers looking at the doctor
-    this.head.speakAudio({ audio: buffer, ...timing }, { lipsyncLang: 'en' });
+    this._play(buffer, timing);
     this.busyUntil = performance.now() + buffer.duration * 1000 + 500;
     this.last = { text, source, seconds: +buffer.duration.toFixed(2), words: timing.words.length };
     return this.last;
@@ -91,6 +107,67 @@ export class Voice {
   stop() {
     this.busyUntil = 0;
     try { this.head.stopSpeaking(); } catch { /* nothing playing */ }
+  }
+
+  // ---- talking to her: record the student's voice, transcribe it, she says it back ------------------
+  get recording() { return Boolean(this.recorder && this.recorder.state === 'recording'); }
+
+  /** Start recording from the microphone (needs a user gesture + permission; works on localhost and https). */
+  async startRecording() {
+    if (this.recording) return;
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('microphone not available (needs https or localhost)');
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    const mimeType = types.find((t) => window.MediaRecorder?.isTypeSupported?.(t));
+    this.chunks = [];
+    this.recorder = new MediaRecorder(this.stream, mimeType ? { mimeType } : undefined);
+    this.recorder.ondataavailable = (e) => { if (e.data.size) this.chunks.push(e.data); };
+    this.recStart = performance.now();
+    this.recorder.start();
+  }
+
+  /** Stop recording and return the audio Blob. */
+  stopRecording() {
+    return new Promise((resolve) => {
+      if (!this.recording) return resolve(null);
+      this.recorder.onstop = () => {
+        this.stream?.getTracks().forEach((t) => t.stop());
+        resolve(new Blob(this.chunks, { type: this.recorder.mimeType || 'audio/webm' }));
+      };
+      this.recorder.stop();
+    });
+  }
+
+  /** Send a recording to the server (ElevenLabs speech-to-text). Returns { text, words:[{text,start,end}] }. */
+  async transcribe(blob) {
+    const r = await fetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type || 'audio/webm' }, body: blob });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `transcription failed (${r.status})`);
+    return j;
+  }
+
+  /**
+   * Handle a finished recording. replyIn:
+   *   'her'  : she says the transcript in the ElevenLabs voice
+   *   'mine' : she lip-syncs to the student's own recording (word timings from the transcription)
+   */
+  async sayRecording(blob, { replyIn = 'her' } = {}) {
+    const t = await this.transcribe(blob);
+    if (!t.text) return { text: '', source: 'none' };
+    if (replyIn === 'mine') {
+      const ctx = this.head.audioCtx;
+      await ctx.resume();
+      const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+      const words = t.words.map((w) => w.text);
+      const wtimes = t.words.map((w) => Math.round(w.start * 1000));
+      const wdurations = t.words.map((w) => Math.max(40, Math.round((w.end - w.start) * 1000)));
+      this.affect?.gaze?.lookAtStudent();
+      this._play(buffer, { words, wtimes, wdurations });
+      this.busyUntil = performance.now() + buffer.duration * 1000 + 500;
+      this.last = { text: t.text, source: 'your recording', seconds: +buffer.duration.toFixed(2), words: words.length };
+      return this.last;
+    }
+    return this.speak(t.text);
   }
 }
 
