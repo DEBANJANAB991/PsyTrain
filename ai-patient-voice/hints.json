@@ -1,0 +1,76 @@
+{
+  "distraction": {
+    "strategies": [
+      {
+        "level": 1,
+        "short_hint": "Narrow the topic",
+        "long_explanation": "Steer the content. Don't let the patient drift along; actively give the narrative a direction. Worksheet 13 describes five levels of steering (general, reaction-related, inferring the trigger, asking about patterns, picking up the patient's evaluation), which let the therapist guide the further course of the conversation quite early ([Socratic Dialogue, p. 63](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/IE7H5UJA#page=66&search=dem_Erzaehlen_Ihrer_Klientin_eine_Richtung_geben&phrase=true), [Worksheet 13](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/IE7H5UJA#page=66&search=AB+13+Dem+Erzaehlprozess+eine+Richtung+geben&phrase=true)). In the SCID setting: pick up one aspect of what the patient says and narrow the topic back to the interview question."
+      },
+      {
+        "level": 2,
+        "short_hint": "Name the observation",
+        "long_explanation": "Name distractibility as a symptom, not as resistance. State it as an observation and ask the patient whether the observation is correct, e.g. \"I notice we've drifted from the topic. Does that match your experience?\" Offer breaks or interruptions, or agree on shorter appointments. Avoid long therapist monologues and give answer options instead of open questions ([Psychoses, p. 21](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/ISQN5YHS#page=23&search=diese_als_Beobachtungen_anzusprechen_und_den_Patienten_zufragen_ob_die_Beobachtung_korrekt_ist&phrase=true)). For the SCID setting this means short, closed or multiple-choice questions and actively offering pauses."
+      },
+      {
+        "level": 3,
+        "short_hint": "Interrupt and repeat",
+        "long_explanation": "Interrupt in a formulaic way and repeat the SCID question verbatim. Interrupting is a legitimate conversational corrective; not letting someone finish is not an expression of impatience or lack of respect ([Socratic Dialogue, Worksheet 42, p. 130](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/IE7H5UJA#page=133&search=Daerfen_Sie_kurz_unterbrechen_Ich_darf_Sie_bitte_kurz_unterbrechen&phrase=true), [introduction, p. 109](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/IE7H5UJA#page=110&search=AB+42_Unterbrechen&phrase=true)). Use the patient's name (\"Ms. Keller, ...\"), wait for a brief gap in their breath, then continue immediately with your point. Example phrasings: \"May I interrupt you briefly?\", \"Let me add something?\", \"May I give your account a different direction?\" Then repeat the question word for word (Worksheet 35 \"Repeating\", p. 115 / PDF p. 117)."
+      }
+    ],
+    "general_tips": [
+      {
+        "short_hint": "Therapist leads",
+        "long_explanation": "Basic stance: the therapist holds the reins. Conversation management means explicitly expressing the clear intention to lead the conversation, from tight, directive steering to deliberately loosening control, but always as the therapist's decision ([Socratic Dialogue, p. 109](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/IE7H5UJA#page=110&search=klare_Absicht_der_Therapeutin_aus_zu_druecken_das_Gespraech_zu_fuehren&phrase=true))."
+      },
+      {
+        "short_hint": "Prioritize with patient",
+        "long_explanation": "For topic fragmentation (\"shows ten things instead of one\"): prioritize and leave the priority with the patient; only if they don't know how to continue, make a suggestion yourself: \"Where do you think we should start?\" ([Eating Disorders in Adolescents, p. 111](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=114&search=Wa_s_denkst_du_wo_sollten_wir_ansetzen&phrase=true)). Further levers: deepening with open questions, making vague terms (\"regularly\", \"a lot\") concrete, abstracting from concrete situations, and agreeing on the time frame together ([INFO 38](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=114&search=Verhaltenstherapeutische_Gespraechs_fuehrung_Fokussierung&phrase=true))."
+      },
+      {
+        "short_hint": "Set goal upfront",
+        "long_explanation": "Have a clear idea of the goal in advance, so you can steer toward it and close the interaction ([Difficult Therapy Courses, p. 48](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/7WVD4HQP#page=51&search=eine_Vorstellung_davon_haben_was_Sie_mit_einem_bestimmten_Stuhldialog_anstreben&phrase=true)). If you make no progress despite steering, respect that and end the exercise instead of escalating ([Difficult Therapy Courses, p. 63](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/7WVD4HQP#page=66&search=wenn_der_Patient_trotz_Ihrer_Steuerung_durch_Sie_nicht_vorankommt&phrase=true))."
+      }
+    ]
+  },
+  "aggressive": {
+    "strategies": [
+      {
+        "level": 1,
+        "short_hint": "Validate, set limit",
+        "long_explanation": "Irritated comments such as \"This doesn't help anyway.\" Take the patient seriously, leave them the space they need, and do not correct the content. Use the dual strategy in a single sentence: validate the emotion and set a boundary. The emotion is understandable and important, but an outburst of aggression or violence is not productive; instead, learn calming and breathing techniques ([Eating Disorders in Adolescents, p. 105](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=107&search=Doppelstrategie_ist_hilfreich_um_den_Patientinnen_nahezulegen_dass_ihre_Emotionen_nachvollziehbar&phrase=true)). With mild to moderate aggression the patient should \"under no circumstances be provoked\". Aggressive patients often have a lot of experience with provocation, so a power struggle would end in failure; instead, take the patient seriously and leave the needed space ([Eating Disorders in Adolescents, INFO 36, p. 103](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=106&search=ein_Machtkampf_in_dieser_Situation_auf_einen_Misserfolg_hinauslaufen_wuerde&phrase=true)). In the simulation: the avatar provokes, and the right answer works on the relationship level, not by correcting content."
+      },
+      {
+        "level": 2,
+        "short_hint": "Slow, firm, meta",
+        "long_explanation": "Open confrontation or questioning of the therapist's competence. Speak slowly with repetitions, act firmly and set boundaries, and avoid dramatizing or escalating the situation ([Integrative CBT, INFO 162, p. 536](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/SHJ9Q8ZZ#page=538&search=Abstand_halten_beruhigend_zureden_langsam_sprechen&phrase=true)). Use metacommunication instead of a power struggle. Confrontation must not become a power struggle: \"This is not about a power struggle! All these measures should be used to test how hard the patient's defense is and how flexible they still are in interrupting or leaving their patterns\" ([Difficult Therapy Courses, p. 53](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/7WVD4HQP#page=56&search=Es_geht_hier_nicht_um_einen_Machtkampf_wie_hart_die_Abwehr_des_Patienten_steht&phrase=true)). Confrontation is therefore also a diagnostic tool."
+      },
+      {
+        "level": 3,
+        "short_hint": "Distance, end, safety",
+        "long_explanation": "Threats, loud or menacing language, standing up. Early recognition is central; leading signs of imminent aggression are verbal announcement of aggression, defiant-rebellious behavior, changes in speech (loud, swearing, threatening) and hyperkinetic behavior ([Integrative CBT, p. 536](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/SHJ9Q8ZZ#page=538&search=verbale_Ankuendigung_von_Aggression_trotziges_rebellisches_Verhalten&phrase=true)). Pre-phase interventions: keep your distance and calm the patient, speak slowly with repetitions, bring in familiar people, act firmly and set boundaries, avoid dramatizing and escalating ([Integrative CBT, p. 536](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/SHJ9Q8ZZ#page=538&search=Abstand_halten_beruhigend_zureden_langsam_sprechen&phrase=true)). In the violence phase, \"verbal interventions are contraindicated, usually they reinforce the escalation\". Secure your own protection, call police or emergency services if necessary, and never overestimate your own strength or underestimate the patient's potential for violence ([Integrative CBT, p. 536](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/SHJ9Q8ZZ#page=538&search=verbale_Interventionen_sind_kontraindiziert_zumeist_verstaerken_sie_die_Eskalation&phrase=true)). In the simulation: keep distance, end the conversation, safety comes first, no further verbal interventions. Aggressiveness can also be a red flag that makes continued treatment risky ([Difficult Therapy Courses, INFO 6](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/7WVD4HQP#page=14&search=Red_Flags_gefaehrliche_Konsequenzen_fuer_die_Patientin_und_die_Therapeutin&phrase=true))."
+      }
+    ],
+    "general_tips": [
+      {
+        "short_hint": "No power struggle",
+        "long_explanation": "Central rule: don't get drawn into a power struggle ([Eating Disorders in Adolescents, INFO 36, p. 103](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=106&search=Umgang_mit_Aggression_in_der_Therapie&phrase=true)). Define the goal beforehand and steer and close the interaction once the goal is reached ([Difficult Therapy Courses, p. 48](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/7WVD4HQP#page=51&search=eine_Vorstellung_davon_haben_was_Sie_mit_einem_bestimmten_Stuhldialog_anstreben&phrase=true))."
+      },
+      {
+        "short_hint": "Classify the aggression",
+        "long_explanation": "Classify aggression diagnostically instead of reacting across the board. INFO 36 distinguishes proactive vs. reactive, instrumental vs. hostile, direct vs. indirect, and verbal vs. non-verbal aggression: \"Every aggressive behavior has different underlying causes and should be treated accordingly\" ([Eating Disorders in Adolescents, p. 103](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=105&search=Jedes_aggressive_Verhalten_hat_andere_zugrundeliegende_Ursachen&phrase=true)). In a SCID interview, irritability can be a symptom (depression, mania, dependence, ADHD, PTSD, personality disorder) and not just a \"difficult patient\"."
+      },
+      {
+        "short_hint": "Watch risk factors",
+        "long_explanation": "Risk factors for violence: alcohol or drugs, borderline or antisocial personality, history of violence, intense transference phenomena ([Integrative CBT, p. 536](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/SHJ9Q8ZZ#page=538&search=Risikofaktoren_Alkohol_und_Drogenmissbrauch_verbale_Gewaltbereitschaft&phrase=true))."
+      },
+      {
+        "short_hint": "Agree a safe word",
+        "long_explanation": "For role plays with aggression (relevant for the avatar simulation): agree a generally accepted safe word beforehand so the exercise can be stopped immediately if real aggressive feelings arise; continue only after letting off steam and joint reflection ([Eating Disorders in Adolescents, p. 104](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=106&search=vor_dem_Rollenspiel_ein_allgemein_akzeptiertes_Safe_Word_generiert&phrase=true)). Role plays serve to learn alternative reactions to one's own routine ([p. 104](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=106&search=Rollenspiele_koennen_in_der_Therapie_genutzt_werden&phrase=true))."
+      },
+      {
+        "short_hint": "Seek supervision",
+        "long_explanation": "If strategies don't help, supervision or intervision is recommended to work through one's own feeling of helplessness ([Eating Disorders in Adolescents, p. 102](https://openwebui.shearia.de/viewer/pdfjs/web/viewer.html?file=../../pdf/VQJWM6TK#page=105&search=fuer_den_Therapeutin_ratsam_Supervision_und_Intervision_in_Anspruch_zu_nehmen&phrase=true))."
+      }
+    ]
+  }
+}
