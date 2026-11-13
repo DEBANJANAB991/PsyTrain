@@ -176,34 +176,20 @@ export class BodyLanguage {
 
   /** Look somewhere else in the room for a moment (door, window, floor, ceiling, aside). */
   lookAround() {
-    const h = this.head, a = this.affect, b = a.getBehavior();
+    const g = this.affect.gaze, b = this.affect.getBehavior();
+    if (!g) return;
     const targets = [
-      { yaw: 0.55, pitch: 0.0 }, { yaw: -0.55, pitch: 0.0 },     // left / right
-      { yaw: 0.8, pitch: -0.05 }, { yaw: -0.8, pitch: -0.05 },   // door / window, further round
-      { yaw: 0.2, pitch: 0.25 }, { yaw: -0.2, pitch: 0.3 },      // floor
-      { yaw: 0.3, pitch: -0.25 }                                  // ceiling
+      { yaw: 0.7, pitch: 0.0 }, { yaw: -0.7, pitch: 0.0 },       // left / right
+      { yaw: 1.1, pitch: -0.05 }, { yaw: -1.1, pitch: -0.05 },   // door / window, further round
+      { yaw: 0.3, pitch: -0.45 }, { yaw: -0.3, pitch: -0.5 },    // floor
+      { yaw: 0.4, pitch: 0.5 }                                    // ceiling
     ];
     const tg = pick(targets);
-    const dur = rand(1100, 2800) * (b.lookAround > 0.5 ? 0.6 : 1);
-    a._removeAnim('look_around');
-    h.animQueue.push(h.animFactory({
-      name: 'look_around',
-      dt: [rand(350, 600), dur, rand(450, 700)],
-      vs: {
-        bodyRotateY: [tg.yaw * 0.7, tg.yaw * 0.7, 0], bodyRotateX: [tg.pitch * 0.4, tg.pitch * 0.4, 0],
-        eyesRotateY: [tg.yaw * 0.7, tg.yaw * 0.7, 0], eyesRotateX: [tg.pitch, tg.pitch, 0],
-        eyeContact: [0, 0, 0], headMove: [0.9, 0.9, 0]
-      }
-    }));
+    const dur = rand(1.2, 3.0) * (b.lookAround > 0.5 ? 0.6 : 1);
+    g.lookAt(tg.yaw, tg.pitch, dur, 0.6);
     // anxious patients often glance twice
     if (b.lookAround > 0.55 && Math.random() < 0.5) {
-      setTimeout(() => {
-        a._removeAnim('look_around');
-        h.animQueue.push(h.animFactory({
-          name: 'look_around', dt: [300, rand(500, 1000), 400],
-          vs: { bodyRotateY: [-tg.yaw * 0.5, -tg.yaw * 0.5, 0], eyesRotateY: [-tg.yaw * 0.5, -tg.yaw * 0.5, 0], eyeContact: [0, 0, 0], headMove: [0.9, 0.9, 0] }
-        }));
-      }, dur + 900);
+      setTimeout(() => g.lookAt(-tg.yaw * 0.7, tg.pitch * 0.5, rand(0.5, 1.0), 0.5), (dur + 0.9) * 1000);
     }
   }
 

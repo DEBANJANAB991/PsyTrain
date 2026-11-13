@@ -5,18 +5,9 @@ import {
 
 const clamp01 = (x) => Math.min(1, Math.max(0, Number.isFinite(x) ? x : 0));
 const MOOD_NAME = 'patient_affect';
-
-// How the eyes wander while idle, per emotion (TalkingHead anim ranges: rotateY = sideways, rotateX = down+).
-const EYE_STYLE = {
-  neutral:    { dt: [200, [2000, 5000], [3000, 9000, 1, 2]], y: [-0.35, 0.35], x: [-0.1, 0.3], head: 0.5 },
-  tense:      { dt: [120, [250, 900]],                        y: [-0.8, 0.8],   x: [-0.2, 0.5], head: 0.4 },
-  anxious:    { dt: [100, [180, 700]],                        y: [-0.9, 0.9],   x: [-0.3, 0.5], head: 0.6 },
-  angry:      { dt: [300, [3000, 8000]],                      y: [-0.15, 0.15], x: [-0.05, 0.1], head: 0.2 },
-  sad:        { dt: [500, [3000, 7000]],                      y: [-0.2, 0.2],   x: [0.4, 0.8],  head: 0.1 },
-  withdrawn:  { dt: [400, [2500, 6000]],                      y: [-0.25, 0.25], x: [0.3, 0.7],  head: 0.1 },
-  dismissive: { dt: [300, [1500, 4000]],                      y: [-0.8, 0.8],   x: [-0.5, 0.2], head: 0.5 },
-  relieved:   { dt: [200, [2500, 6000], [3000, 9000, 1, 2]],  y: [-0.3, 0.3],   x: [-0.1, 0.3], head: 0.5 }
-};
+// Animations we never want: TalkingHead's random poses / eye wander / look-at / eye-contact head moves.
+// (Gaze is handled by gaze.js; the pose by the seated-pose guard.)
+const PURGE = ['pose', 'mouth', 'eyes', 'lookat', 'headmove', 'look_around', 'gaze_override'];
 
 /**
  * The single entry point for the patient's emotional state. Debug buttons and (later)
@@ -35,9 +26,12 @@ export class Affect {
     this.overrides = {};          // user overrides of the behaviour profile
     this.shiftOffset = {};        // posture-shift deltas from the body-language layer
     this.bodyLang = null;         // set by main.js
+    this.gaze = null;             // set by main.js
     this.listeners = new Set();
     this.poseCache = this._makeStraightBase();
     this._lockSeated();
+    // Gaze is ours (gaze.js): neutralise TalkingHead's screen-space look-at / eye-contact helpers
+    for (const m of ['lookAtCamera', 'lookAhead', 'lookAt', 'makeEyeContact']) this.head[m] = () => {};
   }
 
   /**
@@ -61,7 +55,7 @@ export class Affect {
   /** Drop animations that would change pose on their own. Called every frame by BodyLanguage. */
   purgePoseAnims() {
     const q = this.head.animQueue;
-    for (let i = q.length - 1; i >= 0; i--) if (q[i].template.name === 'pose') q.splice(i, 1);
+    for (let i = q.length - 1; i >= 0; i--) if (PURGE.includes(q[i].template.name)) q.splice(i, 1);
   }
 
   onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -112,7 +106,7 @@ export class Affect {
     // setMood() only replaces animations with the same name, so drop the leftovers. Without this the
     // patient randomly stands up / changes to a standing pose.
     const mine = new Set(mood.anims.map((a) => a.name));
-    for (const name of ['pose', 'mouth']) if (!mine.has(name)) this._removeAnim(name);
+    for (const name of PURGE) if (!mine.has(name)) this._removeAnim(name);
   }
 
   _buildMood() {
@@ -125,22 +119,6 @@ export class Affect {
       const a = neutral[key] ?? 0, b = target[key] ?? 0;
       baseline[key] = a + (b - a) * k;
     }
-
-    const es = EYE_STYLE[emotion] || EYE_STYLE.neutral;
-    const pStudent = beh.gazeStudent;
-    const headMove = es.head * (0.4 + beh.headMotion);
-    const idleEyes = { alt: [
-      { p: pStudent, delay: [200, 3000], dt: [200, [2000, 5000], [3000, 9000, 1, 2]],
-        vs: { headMove: [0.5], eyesRotateY: [[-0.3, 0.3]], eyesRotateX: [[-0.1, 0.3]], eyeContact: [null, 1] } },
-      { delay: [100, 1500], dt: es.dt,
-        vs: { headMove: [headMove], eyesRotateY: [es.y], eyesRotateX: [es.x] } }
-    ]};
-    const speakEyes = { alt: [
-      { p: Math.max(pStudent, 0.5), delay: [200, 5000], dt: [0, [3000, 10000, 1, 2], [2000, 5000]],
-        vs: { eyeContact: [1, null], headMove: [null, 0.4, null], eyesRotateY: [null, [-0.5, 0.5]], eyesRotateX: [null, [-0.2, 0.5]] } },
-      { delay: [200, 5000], dt: [200, [2000, 5000, 1, 2]],
-        vs: { headMove: [0.4, null], eyesRotateY: [[-0.5, 0.5]], eyesRotateX: [[-0.2, 0.5]] } }
-    ]};
 
     // Blink rate: 1.0 ~ one blink every ~4 s on average; double blinks happen occasionally.
     const br = Math.max(0.2, beh.blink);
@@ -163,7 +141,6 @@ export class Affect {
         { name: 'head',
           idle: { delay: [0, 1000], dt: [[200, 5000]], vs: { bodyRotateX: [[-0.03 * mv, 0.06 * mv]], bodyRotateY: [[-0.14 * mv, 0.14 * mv]], bodyRotateZ: [[-0.05 * mv, 0.05 * mv]] } },
           speaking: { dt: [[0, 1000, 0]], vs: { bodyRotateX: [[-0.03, 0.08, 1, 2]], bodyRotateY: [[-0.06, 0.06]], bodyRotateZ: [[-0.05, 0.05]] } } },
-        { name: 'eyes', idle: idleEyes, speaking: speakEyes },
         blink,
         microAnim
       ]
@@ -221,21 +198,13 @@ export class Affect {
   }
 
   _applyGaze(gaze) {
-    const h = this.head;
-    this._removeAnim('gaze_override');
-    if (gaze === 'student') {
-      h.lookAtCamera(3000);
-    } else if (gaze === 'away') {
-      h.lookAhead(3000);
-    } else if (gaze === 'around') {
-      this.bodyLang?.lookAround();
-      this.state.gaze = 'student'; // one-shot, then back to default behaviour
-    } else if (gaze === 'down') {
-      h.animQueue.push(h.animFactory({
-        name: 'gaze_override', dt: [500, 3000, 600],
-        vs: { eyesRotateX: [0.6, 0.6, 0], bodyRotateX: [0.12, 0.12, 0], eyeContact: [0, 0, 0], headMove: [0, 0, 0] }
-      }));
-    }
+    const g = this.gaze;
+    if (!g) return;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    if (gaze === 'student') g.lookAtStudent();
+    else if (gaze === 'away') g.lookAt(side * (0.55 + Math.random() * 0.3), (Math.random() - 0.3) * 0.4, 3, 0.55);
+    else if (gaze === 'down') g.lookAt(side * 0.1, -0.5, 3, 0.55);
+    else if (gaze === 'around') { this.bodyLang?.lookAround(); this.state.gaze = 'student'; } // one-shot
   }
 
   playGesture(name) {

@@ -60,7 +60,7 @@ export const ARMS = {
 // ---------------------------------------------------------------------------------------------
 // Emotions
 // ---------------------------------------------------------------------------------------------
-export const EMOTIONS = ['neutral', 'tense', 'anxious', 'angry', 'sad', 'withdrawn', 'dismissive', 'relieved'];
+export const EMOTIONS = ['neutral', 'tense', 'anxious', 'angry', 'sad', 'withdrawn', 'dismissive', 'relieved', 'excited'];
 export const GAZES = ['student', 'away', 'down', 'around'];
 export const GESTURES = ['none', 'nod', 'shake', 'shrug'];
 
@@ -102,6 +102,13 @@ export const FACE = {
     browOuterUpLeft: 0.6, browDownRight: 0.35,
     eyeBlinkLeft: 0.42, eyeBlinkRight: 0.4, noseSneerLeft: 0.4, eyesLookDown: 0.0
   },
+  excited: {
+    // bright smile, wide eyes, raised brows (kept natural: over-stretching the mouth looks uncanny)
+    mouthSmile: 0.55, mouthSmileLeft: 0.5, mouthSmileRight: 0.5, jawOpen: 0.1, mouthUpperUpLeft: 0.12, mouthUpperUpRight: 0.12,
+    mouthDimpleLeft: 0.3, mouthDimpleRight: 0.3, cheekSquintLeft: 0.45, cheekSquintRight: 0.45,
+    eyeSquintLeft: 0.12, eyeSquintRight: 0.12, eyeWideLeft: 0.4, eyeWideRight: 0.4,
+    browInnerUp: 0.45, browOuterUpLeft: 0.5, browOuterUpRight: 0.5
+  },
   relieved: {
     mouthSmile: 0.5, mouthSmileLeft: 0.5, mouthSmileRight: 0.45,
     cheekSquintLeft: 0.35, cheekSquintRight: 0.35, eyeSquintLeft: 0.2, eyeSquintRight: 0.2,
@@ -118,7 +125,8 @@ export const MICRO = {
   sad:        { mouthRollLower: 0.4, browInnerUp: 0.25, mouthFrownLeft: 0.2, mouthFrownRight: 0.2, mouthPucker: 0.15 },
   withdrawn:  { mouthRollLower: 0.3, mouthRollUpper: 0.2, browInnerUp: 0.15 },
   dismissive: { mouthLeft: 0.3, noseSneerLeft: 0.3, browOuterUpLeft: 0.25, mouthShrugUpper: 0.25 },
-  relieved:   { mouthSmileLeft: 0.2, mouthSmileRight: 0.2, browInnerUp: 0.15, mouthRollLower: 0.15 }
+  relieved:   { mouthSmileLeft: 0.2, mouthSmileRight: 0.2, browInnerUp: 0.15, mouthRollLower: 0.15 },
+  excited:    { mouthSmileLeft: 0.25, mouthSmileRight: 0.25, browOuterUpLeft: 0.3, browOuterUpRight: 0.3, jawOpen: 0.1, eyeWideLeft: 0.2, eyeWideRight: 0.2 }
 };
 
 // Body: euler DELTAS added on top of the seated pose at intensity 1 (posture / lean / shoulders).
@@ -175,6 +183,16 @@ export const BODY_DELTAS = {
     'LeftShoulder.rotation':  { x: 0, y: 0, z: -0.04 },
     'RightShoulder.rotation': { x: 0, y: 0, z: 0.04 }
   },
+  excited: {
+    // sits forward on the edge of the seat, chest up, head up, shoulders a little raised
+    'Spine.rotation':  { x: 0.06, y: 0, z: 0 },
+    'Spine1.rotation': { x: 0.04, y: 0, z: 0 },
+    'Spine2.rotation': { x: -0.05, y: 0, z: 0 },
+    'Neck.rotation':   { x: -0.06, y: 0, z: 0 },
+    'Head.rotation':   { x: -0.04, y: 0, z: 0 },
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.10 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: -0.10 }
+  },
   relieved: {
     'Spine.rotation':  { x: -0.03, y: 0, z: 0 },
     'Spine2.rotation': { x: 0.06, y: 0, z: 0 },
@@ -207,5 +225,29 @@ export const BEHAVIOR = {
   sad:        { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.15, blink: 1.2, breath: 0.8, headMotion: 0.2, arms: 'rest' },
   withdrawn:  { fidget: 0.15, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.10, blink: 1.0, breath: 0.85, headMotion: 0.15, arms: 'clasped' },
   dismissive: { fidget: 0.20, footTap: 0.25, legBounce: 0.00, shift: 0.45, lookAround: 0.60, gazeStudent: 0.35, blink: 0.8, breath: 0.95, headMotion: 0.6, arms: 'crossed' },
+  excited:    { fidget: 0.55, footTap: 0.25, legBounce: 0.55, shift: 0.75, lookAround: 0.30, gazeStudent: 0.92, blink: 1.3, breath: 1.5, headMotion: 0.95, arms: 'rest' },
   relieved:   { fidget: 0.05, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.90, blink: 0.9, breath: 0.85, headMotion: 0.5, arms: 'rest' }
+};
+
+// ---------------------------------------------------------------------------------------------
+// Gaze. The patient looks at the student's real position (the camera / headset), so she follows
+// you as you move. On top of that she looks away in "aversions" depending on the emotion.
+// Angles in radians (36 deg = 0.63 rad is about the eyeball's full range).
+//   yaw / pitch   range of the look-away offset (pitch > 0 = up)
+//   away          [min, max] seconds a look-away lasts
+//   contact       [min, max] seconds of eye contact between look-aways
+//   head          share of a gaze shift the head takes over from the eyes (0 = eyes only)
+//   jitter        size of the tiny saccades while holding eye contact
+// How OFTEN she looks away is BEHAVIOR[emotion].gazeStudent (1 = never, 0 = always).
+// ---------------------------------------------------------------------------------------------
+export const EYE_STYLE = {
+  neutral:    { yaw: [-0.35, 0.35], pitch: [-0.10, 0.25], away: [0.8, 2.0], contact: [2.0, 6.0], head: 0.45, jitter: 0.015 },
+  tense:      { yaw: [-0.60, 0.60], pitch: [-0.25, 0.30], away: [0.2, 0.9], contact: [0.8, 2.5], head: 0.30, jitter: 0.03 },
+  anxious:    { yaw: [-0.70, 0.70], pitch: [-0.30, 0.30], away: [0.15, 0.7], contact: [0.5, 1.8], head: 0.30, jitter: 0.045 },
+  angry:      { yaw: [-0.15, 0.15], pitch: [-0.05, 0.10], away: [0.6, 1.5], contact: [3.0, 9.0], head: 0.55, jitter: 0.008 },
+  sad:        { yaw: [-0.30, 0.30], pitch: [-0.60, -0.30], away: [1.0, 3.5], contact: [0.6, 1.5], head: 0.35, jitter: 0.012 },
+  withdrawn:  { yaw: [-0.30, 0.30], pitch: [-0.55, -0.25], away: [1.5, 4.0], contact: [0.4, 1.2], head: 0.30, jitter: 0.01 },
+  dismissive: { yaw: [-0.80, 0.80], pitch: [0.0, 0.40], away: [0.8, 2.5], contact: [1.0, 3.0], head: 0.55, jitter: 0.015 },
+  relieved:   { yaw: [-0.35, 0.35], pitch: [-0.10, 0.20], away: [0.8, 2.0], contact: [2.5, 7.0], head: 0.45, jitter: 0.012 },
+  excited:    { yaw: [-0.45, 0.45], pitch: [-0.05, 0.30], away: [0.5, 1.4], contact: [2.5, 7.0], head: 0.50, jitter: 0.02 }
 };
