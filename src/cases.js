@@ -47,7 +47,7 @@ export const AVAILABLE_LEVELS = {
  * Difficult situations. `body` is the body-language part, in the format of Personality.define()
  * (personality.js) minus the traits, which come from step 2. `profile` tells the live director (agent.js)
  * who the patient is, so her body language can follow the live conversation with the ElevenLabs patient
- * agent (ai-patient-voice/, played as Julia Keller).
+ * agent (ai-patient-voice/, played as Mary Keller).
  */
 export const SITUATIONS = [
   {
@@ -55,7 +55,7 @@ export const SITUATIONS = [
     label: 'Easily distracted',
     blurb: 'Talks a lot, drifts into anecdotes and loses the thread. Train steering the interview back to your question.',
     enabled: true,
-    profile: 'Julia Keller, 34, event manager. Very sociable, extremely talkative, warm and humorous. Easily distracted: any keyword starts a chain of anecdotes, she comments on the room, glances at her buzzing phone and forgets the question. Wants to be liked and plays problems down; never hostile. She came because her partner Jonas suggested it; the topic is her drinking, which she minimises.',
+    profile: 'Mary Keller, 34, event manager. Very sociable, extremely talkative, warm and humorous. Easily distracted: any keyword starts a chain of anecdotes, she comments on the room, glances at her buzzing phone and forgets the question. Once the therapist calmly names her tangents she stays clearly more focused, with only small tangents. Wants to be liked and plays problems down; never hostile. She came because her partner Lena suggested it; the topic is her drinking, which she minimises.',
     body: {
       description: 'easily distracted: looks around the room, restless hands, behaviour drifts a lot',
       ranges: { lookAround: { min: 0.5, max: 1 }, fidget: { min: 0.4, max: 1 } },

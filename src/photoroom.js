@@ -6,8 +6,8 @@ import { ROOM, PHOTO_ROOM } from './config.js';
 import { buildWheelchair } from './room.js';
 
 /**
- * A real room instead of the modelled one: a 360° photo of a sitting room (Poly Haven "Reading Room",
- * CC0) projected onto a dome with a flat floor (three.js GroundedSkybox), so the patient and her chair
+ * A real room instead of the modelled one: a 360° photo of a room (Poly Haven, CC0; PHOTO_ROOMS in config.js)
+ * projected onto a dome with a flat floor (three.js GroundedSkybox), so the patient and her chair
  * stand on the photo's floor. The same room's HDR lights the avatar, so skin and clothes pick up the
  * photo's real light colours. The chair is a scanned-quality model (Poly Haven "Dining Chair 02", CC0).
  *

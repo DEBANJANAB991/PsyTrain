@@ -50,7 +50,7 @@ entering, or drive it from the console / track B.
 | `src/cases.js` | Landing-page options (patients, trait levels, situations) and the URL / personality they turn into |
 | `src/photoroom.js` | Default room: a real 360° photo projected onto the floor (`GroundedSkybox`), lit by the same room's HDR, plus a real chair model |
 | `src/room.js` | Procedural consultation room (`/consult.html?room=procedural`): window, furniture, wheelchair, canvas textures |
-| `public/rooms/` | Poly Haven "Reading Room": 6K tonemapped photo (background) + 1K HDR (lighting). CC0 |
+| `public/rooms/` | Poly Haven "Small Empty Room 1" (default, Sergej Majboroda) and "Reading Room": 6K tonemapped photo (background) + 1K HDR (lighting) each. CC0 |
 | `public/models/dining_chair_02.glb` | Poly Haven "Dining Chair 02" (2K textures). CC0 |
 | `public/landing/` | Landing-page portraits (rendered from the app) and the hero image |
 | `src/patient.js` | Loads the avatar via TalkingHead `avatarOnly` mode into our scene |
@@ -68,10 +68,11 @@ eye-rotation range for the gaze code). Add an entry there to try another Talking
 
 ### Room
 
-The default room is a real place: Poly Haven's "Reading Room" 360° photo, projected onto a dome with a flat floor so
-the patient's chair stands on the photo's floor. Her shadow falls on an invisible `ShadowMaterial` floor. The
-settings are in `PHOTO_ROOM` in `src/config.js`. `backU` picks which part of the photo is behind the patient,
-and `cameraHeight` sets the floor scale. Add `?room=procedural` to get the modelled room back. A photo has no
+The default room is a real place: Poly Haven's "Small Empty Room 1" 360° photo (a calm, modern room with open floor,
+the patient sits in front of the window), projected onto a dome with a flat floor so the patient's chair stands on
+the photo's floor. Her shadow falls on an invisible `ShadowMaterial` floor. The rooms are in `PHOTO_ROOMS` in
+`src/config.js`; `?roomphoto=reading` brings back the earlier "Reading Room". `backU` picks which part of the photo
+is behind the patient (try values with `?backu=0.3` in the URL), and `cameraHeight` sets the floor scale. Add `?room=procedural` to get the modelled room back. A photo has no
 parallax, so in the headset the room looks right from the seat but does not shift if you lean far to the side.
 
 ### Patients
@@ -175,9 +176,9 @@ safety-refusal fallback); the tools run in the browser and their results go back
 credentials a small offline rule set understands simple phrases. The endpoint is capped (12 requests per minute, size limits), as with the voice endpoint.
 
 **Live conversation**: the consultation page shows only the room and a **Talk to the patient** button (the full
-control panel is at `&debug=1`). Click it and greet her; she waits for you to speak first. Two agents share the work:
+control panel is at `&debug=1`). Click it; she says hello, then it's your turn. Two agents share the work:
 
-- The **ElevenLabs patient agent** from `ai-patient-voice/` (Julia Keller: prompt, voice, speech recognition,
+- The **ElevenLabs patient agent** from `ai-patient-voice/` (Mary Keller: prompt, voice, speech recognition,
   turn-taking) decides what she says and speaks it. `src/conversation.js` joins it over its WebSocket with a one-time
   signed URL from `/api/voice/agent-session` (the key stays on the server), sends 16 kHz microphone audio
   (`public/worklets/mic-worklet.js`) and plays her audio on the avatar with our lip-sync, using ElevenLabs'

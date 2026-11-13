@@ -25,7 +25,8 @@
     #debug label span { float: right; opacity: .6; }
     #debug .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     /* talk bar: the page's only control */
-    #talkbar { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
+    /* bottom: leaves room for three.js' "ENTER VR" button (bottom 20px, about 30px tall) under the bar */
+    #talkbar { position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
                display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
     #talkbar[hidden] { display: none; }
     #talkbar > * { pointer-events: auto; }

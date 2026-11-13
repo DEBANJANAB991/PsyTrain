@@ -7,7 +7,7 @@ export function createTalkUI(root, { conversation, liveDirector, voice }) {
   root.innerHTML = `
     <div id="caption" aria-live="polite"></div>
     <button id="talk" disabled><span class="dot"></span><span class="label">Loading…</span></button>
-    <div id="talkstatus">Click the button and greet her: she waits for you to speak first.</div>
+    <div id="talkstatus">Click the button: she says hello, then it's your turn.</div>
     <label id="phones"><input type="checkbox"> I'm using headphones (lets me interrupt her)</label>`;
   const btn = root.querySelector('#talk'), label = root.querySelector('.label');
   const phones = root.querySelector('#phones input');

@@ -21,15 +21,37 @@ export const LIGHTING = {
 // Room style: 'photo' = a real room (360° photo, CC0 from Poly Haven) projected onto the floor, lit by the
 // same room's HDR; 'procedural' = the modelled room in room.js. Pick with ?room=procedural.
 export const ROOM_STYLE = new URLSearchParams(globalThis.location?.search ?? '').get('room') === 'procedural' ? 'procedural' : 'photo';
+// Photo rooms (Poly Haven, CC0): a 6K tonemapped photo for the background + the same room's 1K HDR for light.
+// Pick one with ?roomphoto=<key>; the default is the first entry.
+//   cameraHeight  height the photo was taken from (m); sets the scale of the projected floor
+//   radius        size of the projected dome (m); must enclose the student
+//   backU         horizontal position in the photo (0..1) that appears behind the patient
+//   environment   HDR image-based light on the patient
+//   key           soft directional light from the student's side (only shadow caster)
+//   shadow        darkness of the shadow on the photo floor
+export const PHOTO_ROOMS = {
+  // modern, calm room with open floor around the patient (Poly Haven "Small Empty Room 1", Sergej Majboroda)
+  consultation: {
+    label: 'Consultation room',
+    photo: '/rooms/small_empty_room_1_6k.jpg', hdr: '/rooms/small_empty_room_1_1k.hdr',
+    cameraHeight: 1.45, radius: 14, backU: 0.6, environment: 0.9, key: 1.4, shadow: 0.38
+  },
+  // the earlier default: a furnished sitting room (Poly Haven "Reading Room")
+  reading: {
+    label: 'Reading room',
+    photo: '/rooms/reading_room_6k.jpg', hdr: '/rooms/reading_room_1k.hdr',
+    cameraHeight: 1.45, radius: 14, backU: 0.68, environment: 0.9, key: 1.4, shadow: 0.38
+  }
+};
+export const PHOTO_ROOM_KEY = (() => {
+  const k = new URLSearchParams(globalThis.location?.search ?? '').get('roomphoto');
+  return k && PHOTO_ROOMS[k] ? k : Object.keys(PHOTO_ROOMS)[0];
+})();
+// ?backu=0.3 turns the photo (for finding a good view; copy the value into PHOTO_ROOMS)
+const backUParam = parseFloat(new URLSearchParams(globalThis.location?.search ?? '').get('backu'));
 export const PHOTO_ROOM = {
-  photo: '/rooms/reading_room_6k.jpg',   // tonemapped equirectangular photo (background)
-  hdr: '/rooms/reading_room_1k.hdr',     // same room as HDR, only used for lighting / reflections
-  cameraHeight: 1.45,  // height the photo was taken from (m); sets the scale of the projected floor
-  radius: 14,          // size of the projected dome (m); must enclose the student
-  backU: 0.68,         // horizontal position in the photo (0..1) that appears behind the patient
-  environment: 0.9,    // HDR image-based light on the patient
-  key: 1.4,            // soft directional light from the student's side (only shadow caster)
-  shadow: 0.38,        // darkness of the shadow on the photo floor
+  ...PHOTO_ROOMS[PHOTO_ROOM_KEY],
+  ...(backUParam >= 0 && backUParam <= 1 ? { backU: backUParam } : {}),
   chair: { url: '/models/dining_chair_02.glb', seatTop: 0.483, z: -0.04 }   // seatTop = model's own seat height (m)
 };
 

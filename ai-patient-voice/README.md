@@ -16,7 +16,7 @@ Add your ElevenLabs API key to `.env`. Never commit `.env`. If this folder's `.e
 one in the PsyTrain project's `.env` (`ELEVENLABS_API_KEY` or `eleven_labs_api`).
 
 The 3D app (project root) uses this agent for live conversations: after `create_agent.py`, pick a patient and
-situation on the landing page, enter the room and click "Talk to the patient". Julia speaks through the avatar, and a
+situation on the landing page, enter the room and click "Talk to the patient". Mary speaks through the avatar, and a
 separate director agent changes her body language to match what she says. See the project README, "Live conversation".
 
 ## Run

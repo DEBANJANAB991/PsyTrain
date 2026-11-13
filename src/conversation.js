@@ -4,7 +4,7 @@ const micWorkletUrl = '/worklets/mic-worklet.js';
 const ECHO_TAIL_SECONDS = 0.6;
 
 /**
- * Live voice conversation with the ElevenLabs patient agent (ai-patient-voice/: Julia Keller's prompt, voice,
+ * Live voice conversation with the ElevenLabs patient agent (ai-patient-voice/: Mary Keller's prompt, voice,
  * speech recognition and turn-taking all live in that agent).
  *
  *   const conv = new LiveConversation(head);
