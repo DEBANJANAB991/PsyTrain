@@ -30,6 +30,7 @@ let head = null, affect = null, body = null, gaze = null;
     affect.gaze = gaze;
     createDebugPanel(document.getElementById('debug'), affect);
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
+    affect.snapToPose();
     status.textContent = 'Ready';
     setTimeout(() => (status.style.display = 'none'), 1500);
 
@@ -41,9 +42,11 @@ let head = null, affect = null, body = null, gaze = null;
   }
 })();
 
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const dt = clock.getDelta() * 1000;
+const timer = new THREE.Timer();
+timer.connect(document);   // no huge delta after the tab was hidden
+renderer.setAnimationLoop((time) => {
+  timer.update(time);
+  const dt = Math.min(timer.getDelta() * 1000, 100);
   if (head) { body?.update(dt); head.animate(dt); gaze?.update(dt); }
   if (!renderer.xr.isPresenting) controls.update();
   renderer.render(scene, camera);

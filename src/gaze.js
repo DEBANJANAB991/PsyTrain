@@ -1,16 +1,13 @@
 import * as THREE from 'three';
-import { EYE_STYLE } from './config.js';
+import { EYE_STYLE, AVATAR } from './config.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const wrap = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 const smooth = (dt, tc) => 1 - Math.exp(-dt / tc);
 
-// Eyeball range per morph value 1 (measured on mpfb.glb from the eyeLook* morph targets, radians).
-const EYE = {
-  leftOut: 0.644, leftIn: 0.628, rightIn: 0.623, rightOut: 0.656,
-  up: 0.433, down: 0.54
-};
+// Eyeball range per morph value 1 (radians), measured per avatar from its eyeLook* morph targets.
+const EYE = AVATAR.eyeRange;
 
 /**
  * Gaze controller: she looks at the student's REAL position (camera / headset) and keeps following

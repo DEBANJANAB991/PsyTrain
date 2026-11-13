@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { TalkingHead } from './vendor/talkinghead/talkinghead.mjs';
 import { AVATAR } from './config.js';
 
@@ -25,7 +26,8 @@ export async function createPatient({ scene, camera, anchor, onProgress }) {
       body: AVATAR.body,
       avatarMood: 'neutral',
       lipsyncLang: 'en',
-      baseline: {}
+      ...(AVATAR.retarget ? { retarget: AVATAR.retarget } : {}),
+      baseline: { ...AVATAR.baseline }
     },
     onProgress
   );
@@ -33,6 +35,7 @@ export async function createPatient({ scene, camera, anchor, onProgress }) {
   anchor.add(head.armature);
   head.armature.traverse((o) => {
     if (o.isMesh) {
+      for (const m of [o.material].flat()) if (isHair(o, m)) tuneHair(m);
       o.frustumCulled = false;
       const transparent = Array.isArray(o.material) ? o.material.some((m) => m.transparent) : o.material?.transparent;
       o.castShadow = !transparent;   // hair cards / lashes would cast rectangular shadows
@@ -41,4 +44,23 @@ export async function createPatient({ scene, camera, anchor, onProgress }) {
   });
   head.armature.position.set(AVATAR.seatOffset.x, AVATAR.seatOffset.y, AVATAR.seatOffset.z);
   return head;
+}
+
+const isHair = (mesh, m) => /hair|ponytail/i.test(mesh.name) || /hair|ponytail/i.test(m?.name ?? '');
+
+/**
+ * Hair cards come as alpha-MASK (hard, stair-stepped strand edges) or alpha-BLEND (no depth write,
+ * so the cards sort wrongly and you see through the hair). Render both as opaque cards with
+ * alpha-to-coverage: the MSAA buffer turns alpha into soft edges, depth stays correct, and it is
+ * cheap enough for WebXR. Hair is also not metallic.
+ */
+function tuneHair(m) {
+  const wasBlend = m.transparent;
+  m.transparent = false;
+  m.depthWrite = true;
+  m.alphaToCoverage = true;
+  m.alphaTest = wasBlend ? 0.25 : (m.alphaTest || 0.5);
+  m.side = THREE.DoubleSide;
+  m.metalness = 0;
+  m.needsUpdate = true;
 }

@@ -169,6 +169,11 @@ export class Affect {
     this._applyPose(80);
   }
 
+  /** Jump straight into the current seated pose, so she doesn't visibly sit down after loading. */
+  snapToPose() {
+    this._applyPose(1);
+    for (let i = 0; i < 3; i++) this.head.animate(20);
+  }
   setShiftOffset(offset, ms = 1600) {
     this.shiftOffset = offset || {};
     this._applyPose(ms);

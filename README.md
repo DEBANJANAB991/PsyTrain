@@ -32,13 +32,18 @@ entering, or drive it from the console / track B.
 | File | Role |
 |---|---|
 | `src/config.js` | **All tunable numbers**: room, seated pose, per-mood face + body deltas, gaze style |
-| `src/scene.js` | Room, chair, lights, camera rig, VR button (reference space `local`, eye height 1.2 m) |
+| `src/scene.js` | Renderer, lights, camera rig, VR button (reference space `local`, eye height 1.2 m) |
+| `src/room.js` | Procedural consultation room: window, furniture, canvas textures (no extra assets) |
 | `src/patient.js` | Loads the avatar via TalkingHead `avatarOnly` mode into our scene |
 | `src/affect.js` | `setAffect({emotion, intensity, gaze, gesture, behavior})` -> TalkingHead moods + pose + look-at |
 | `src/bodylang.js` | Procedural body language: fidgeting, foot tap, knee bounce, posture shifts, looking around, breathing, shrug |
 | `src/debug.js` | Debug panel |
 | `src/vendor/talkinghead/` | Vendored TalkingHead modules (MIT) with 2 small patches, marked `PSYTRAIN PATCH` |
-| `public/avatars/mpfb.glb` | Sample avatar (CC0, from the TalkingHead repo, 36 MB) |
+| `public/avatars/avaturn.glb` | Default avatar: photo-based Avaturn model (**non-commercial use only**, from the TalkingHead repo, 14 MB) |
+| `public/avatars/mpfb.glb` | Alternative avatar (CC0, from the TalkingHead repo, 36 MB). Open `/?avatar=mpfb` to use it |
+
+Avatars are registered in `AVATARS` in `src/config.js` (URL, retarget, eyelid baseline, seat offset,
+eye-rotation range for the gaze code). Add an entry there to try another TalkingHead-compatible GLB.
 
 ## The `setAffect` interface (shared with track B)
 

@@ -1,2 +1,5 @@
 node_modules
 dist
+
+# full-quality originals of the optimized avatars (see assets-src/README.md); keep them out of git
+assets-src/

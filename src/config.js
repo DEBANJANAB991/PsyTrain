@@ -8,11 +8,53 @@ export const ROOM = {
   width: 4.5, depth: 5, height: 2.7
 };
 
-export const AVATAR = {
-  url: '/avatars/mpfb.glb',
-  body: 'F',
-  seatOffset: { x: 0, y: 0, z: 0 }
+// Light levels (three.js physical units; see scene.js for positions).
+export const LIGHTING = {
+  exposure: 1.0,
+  environment: 0.45,   // RoomEnvironment reflections / ambient
+  key: 2.6,            // window daylight, casts the shadows
+  ceiling: 2.5,        // warm ceiling panel (point light, candela)
+  rim: 0.8,
+  hemisphere: 0.45
 };
+
+// Avatars. Pick one with ?avatar=<key> in the URL (default: avaturn).
+//   retarget   TalkingHead bone tweaks / scaling (same format as TalkingHead's siteconfig.js)
+//   baseline   per-avatar morph baseline (e.g. eyelid rest position)
+//   seatedPose entries that replace SEATED_POSE for this body's proportions
+//   seatOffset armature offset on the chair (m)
+//   eyeRange   eyeball rotation (rad) at eyeLook* morph value 1, used by gaze.js
+export const AVATARS = {
+  // Photo-based Avaturn T2 model: realistic face + hair, ARKit + Oculus visemes.
+  // Free for non-commercial use only (https://avaturn.me), fine for the hackathon prototype.
+  avaturn: {
+    url: '/avatars/avaturn.glb',
+    body: 'F',
+    retarget: {
+      Hips: { y: 0.03 }, Spine: { y: 0.02 }, Spine1: { y: 0.02, z: 0.01 },
+      Spine2: { y: 0.02, z: 0.01 }, Neck: { z: 0.02, y: 0.01 }, Head: { z: 0.02 },
+      LeftShoulder: { rx: -0.5 }, RightShoulder: { rx: -0.5 },
+      scaleToHipsLevel: 1.0
+    },
+    baseline: { headRotateX: -0.05, eyeBlinkLeft: 0.15, eyeBlinkRight: 0.15 },
+    seatedPose: {},
+    // her back sits ~15 cm in front of the backrest otherwise
+    seatOffset: { x: 0, y: 0, z: -0.09 },
+    eyeRange: { leftOut: 1.029, leftIn: 0.799, rightIn: 0.799, rightOut: 1.030, up: 0.548, down: 0.600 }
+  },
+  // MakeHuman / MPFB model (CC0). Lighter licence, more "game character" look.
+  mpfb: {
+    url: '/avatars/mpfb.glb',
+    body: 'F',
+    baseline: {},
+    seatedPose: {},
+    seatOffset: { x: 0, y: 0, z: 0 },
+    eyeRange: { leftOut: 0.644, leftIn: 0.628, rightIn: 0.623, rightOut: 0.656, up: 0.433, down: 0.54 }
+  }
+};
+const avatarKey = new URLSearchParams(globalThis.location?.search ?? '').get('avatar');
+export const AVATAR_KEY = AVATARS[avatarKey] ? avatarKey : 'avaturn';
+export const AVATAR = AVATARS[AVATAR_KEY];
 
 // ---------------------------------------------------------------------------------------------
 // Seated base pose (derived from TalkingHead's 'straight' pose with new hips/legs/feet/arms).
@@ -32,6 +74,7 @@ export const SEATED_POSE = {
   'LeftFoot.rotation': { x: 1.4, y: 0, z: 0 },
   'RightFoot.rotation': { x: 1.4, y: 0, z: 0 }
 };
+Object.assign(SEATED_POSE, AVATAR.seatedPose);
 
 // Arm / hand placements. 'rest' = hands on thighs. Applied on top of SEATED_POSE.
 export const ARMS = {
