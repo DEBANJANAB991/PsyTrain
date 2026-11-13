@@ -81,6 +81,7 @@ export class Personality {
     this.ranges = {};              // per behavior { min, max }
     this.variability = PRESETS.default.variability;
     this.centers = {};             // set by agents (set_behavior), cleared when the emotion changes
+    this.stateCenters = {};        // conversation state (set_state): survive emotion changes, replaced by the next state
     this.arms = null;              // preferred arm posture of the personality
     this.events = [];              // active { name, t, seconds, fx, strength }
     this.t = 0;
@@ -102,6 +103,7 @@ export class Personality {
     this.variability = p.variability ?? 0.25;
     this.arms = p.arms || null;
     this.centers = {};
+    this.stateCenters = {};
     this.events = [];
     if (applyEmotion && p.emotion) this.affect.setAffect({ emotion: p.emotion, intensity: p.intensity ?? 0.6 });
     else this.affect.setAffect({});
@@ -188,6 +190,9 @@ export class Personality {
 
   clearCenters() { this.centers = {}; }
 
+  /** Body language of the current conversation state; {} = none (her baseline). */
+  setStateCenters(values) { this.stateCenters = { ...values }; this.affect.setAffect({}); }
+
   // ---- events --------------------------------------------------------------------------------------
   trigger(name, strength = 0.7) {
     const ev = EVENTS[name];
@@ -227,7 +232,7 @@ export class Personality {
     for (const key of BEHAVIOR_KEYS) {
       const meta = BEHAVIOR_META[key];
       const r = this.ranges[key] || { min: meta.min, max: meta.max };
-      let c = this.centers[key];
+      let c = this.centers[key] ?? this.stateCenters[key];
       if (c === undefined) {
         let off = 0;
         for (const [trait, w] of Object.entries(TRAIT_MAP[key] || {})) off += w * (this.traits[trait] - 0.5) * 2;
@@ -254,6 +259,7 @@ export class Personality {
       variability: +this.variability.toFixed(2),
       ranges: JSON.parse(JSON.stringify(this.ranges)),
       centers: { ...this.centers },
+      stateCenters: { ...this.stateCenters },
       arms: this.arms,
       activeEvents: this.events.map((e) => ({ event: e.name, secondsLeft: +(e.seconds - e.t).toFixed(1) }))
     };

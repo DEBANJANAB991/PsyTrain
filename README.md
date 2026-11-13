@@ -160,13 +160,35 @@ safety-refusal fallback); the tools run in the browser and their results go back
 
 - **Amazon Bedrock** (used automatically when AWS credentials are in `.env`): `@anthropic-ai/bedrock-sdk`
   (`AnthropicBedrockMantle`, the `bedrock-mantle` Messages API endpoint), model `anthropic.claude-opus-5-5` (override with
-  `BEDROCK_MODEL`). Needs `AWS_REGION` or `AWS_DEFAULT_REGION` plus `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (and
+  `BEDROCK_MODEL`). Model ids with an inference-profile prefix or a version (`global.anthropic.claude-sonnet-4-6`,
+  `us.anthropic.claude-haiku-4-5-20251001-v1:0`) use the `bedrock-runtime` endpoint (`AnthropicBedrock`) instead. Needs `AWS_REGION` or `AWS_DEFAULT_REGION` plus `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (and
   `AWS_SESSION_TOKEN` for temporary credentials), `AWS_BEARER_TOKEN_BEDROCK`, or `AWS_PROFILE`. A declined request is
   retried on `BEDROCK_FALLBACK_MODEL` (default `anthropic.claude-opus-4-8`) by the SDK's refusal-fallback middleware.
 - **Claude API**: `ANTHROPIC_API_KEY`, model `claude-opus-5-5` (override with `ANTHROPIC_MODEL`), server-side fallback.
 
 `AGENT_PROVIDER=bedrock|anthropic` forces one; `ANTHROPIC_FALLBACKS=off` disables the fallback for both. Without
 credentials a small offline rule set understands simple phrases. The endpoint is capped (12 requests per minute, size limits), as with the voice endpoint.
+
+**Live conversation** (landing page: young woman → "Talkative, easily distracted (live voice)", or the panel section
+"Live conversation" on any case): you talk to the patient by microphone. Two agents share the work:
+
+- The **ElevenLabs patient agent** from `ai-patient-voice/` (Mary Keller: prompt, voice, speech recognition,
+  turn-taking) decides what she says and speaks it. `src/conversation.js` joins it over its WebSocket with a one-time
+  signed URL from `/api/voice/agent-session` (the key stays on the server), sends 16 kHz microphone audio
+  (`public/worklets/mic-worklet.js`) and plays her audio on the avatar with our lip-sync, using ElevenLabs'
+  per-character timings.
+- The **live director** (`LiveDirector` in `src/agent.js`, Claude via `/api/agent/step` with `mode: "live"`) gets
+  the profile, the recent transcript and the latest exchange after every patient turn and puts her into a
+  conversation state with `set_state`: `engaged` (her baseline), `distracted`, `storytelling`, `uneasy`,
+  `hesitant`, `at_ease` (bundles of emotion, gaze and behavior centers in `CONVERSATION_STATES`,
+  `shared/agent-tools.js`). It can also add a gesture or an event. When she drifts into a tangent her body goes to
+  `distracted`; when she answers to the point again it switches back to `engaged`. Turns that arrive while a call
+  is running are merged into the next call. Without Bedrock / Anthropic credentials keyword rules pick the state.
+
+Setup: create the agent once with `python ai-patient-voice/create_agent.py` (see that folder's README; it uses the
+ElevenLabs key from this `.env` if its own `.env` has none). It saves `AGENT_ID` in `ai-patient-voice/.env`, which
+the server reads on each request; `ELEVENLABS_AGENT_ID` in this `.env` overrides it. Use headphones so she does not
+hear herself through the microphone.
 
 **Other agents:** the ElevenLabs conversation agent can register the same tools as client tools (same names and
 parameters) and call `patient.agent.execute` from its handler. The schemas are plain JSON in `AGENT_TOOLS`.

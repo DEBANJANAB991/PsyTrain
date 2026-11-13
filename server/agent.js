@@ -2,7 +2,8 @@
  * Director agent endpoint for the Vite dev server (and `vite preview`):
  *
  *   GET  /api/agent/status  -> { configured, provider, model }
- *   POST /api/agent/step    { messages }  ->  { content, stop_reason, model, usage }
+ *   POST /api/agent/step    { messages, mode? }  ->  { content, stop_reason, model, usage }
+ *                           mode "live" = the per-turn body-language director of a live voice conversation
  *
  * One call = one model turn. The tools run in the BROWSER (that is where the patient lives), so the browser
  * loops: send messages -> get tool_use blocks -> run them -> send tool_results. The system prompt and the tool
@@ -17,11 +18,12 @@
  */
 import { createHash } from 'node:crypto';
 import Anthropic, { betaRefusalFallbackMiddleware, BetaFallbackState } from '@anthropic-ai/sdk';
-import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
+import { AnthropicBedrock, AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
 import { loadEnv } from 'vite';
-import { AGENT_TOOLS, DIRECTOR_SYSTEM } from '../shared/agent-tools.js';
+import { AGENT_TOOLS, DIRECTOR_SYSTEM, LIVE_TOOLS, LIVE_DIRECTOR_SYSTEM } from '../shared/agent-tools.js';
 
-const MAX_PER_MINUTE = 12;
+// a live conversation calls the director once per patient turn, so allow a little more than the setup director needs
+const MAX_PER_MINUTE = 30;
 const MAX_BODY = 80_000;
 const MAX_MESSAGES = 14;
 
@@ -111,8 +113,28 @@ function fallbackStateFor(messages) {
   return state;
 }
 
+/**
+ * Model ids of the older bedrock-runtime endpoint (InvokeModel) carry an inference-profile prefix
+ * (global., us., eu., jp., apac., au.) or a version suffix (...-v1:0); bedrock-mantle ids are plain anthropic.claude-*.
+ */
+const isRuntimeModel = (model) => /^(global|us|eu|jp|apac|au)\./.test(model) || /:\d+$|-v\d+$/.test(model) || model.startsWith('arn:');
+
+/** Claude on the bedrock-runtime endpoint (InvokeModel), e.g. global.anthropic.claude-sonnet-4-6. */
+async function callBedrockRuntime(cfg, params) {
+  const { aws } = cfg;
+  // (with AWS_PROFILE only, this client falls back to the default AWS credential chain)
+  const auth = aws.bearer ? { apiKey: aws.bearer }
+    : aws.accessKey && aws.secretKey ? { awsAccessKey: aws.accessKey, awsSecretKey: aws.secretKey, awsSessionToken: aws.sessionToken || null }
+    : {};
+  const client = new AnthropicBedrock({ awsRegion: aws.region, ...auth });
+  // these older models do not all take the effort setting; a short tool-calling turn does not need it
+  const { output_config: _effort, ...rest } = params;
+  return client.messages.create(rest);
+}
+
 /** Claude in Amazon Bedrock. Server-side `fallbacks` is not available there, so refusals are retried by the SDK middleware. */
 async function callBedrock(cfg, params) {
+  if (isRuntimeModel(cfg.model)) return callBedrockRuntime(cfg, params);
   const { aws } = cfg;
   const auth = aws.bearer ? { apiKey: aws.bearer }
     : aws.accessKey && aws.secretKey ? { awsAccessKey: aws.accessKey, awsSecretAccessKey: aws.secretKey, awsSessionToken: aws.sessionToken || null }
@@ -191,11 +213,14 @@ export function agentProxy() {
       const bad = validMessages(body.messages);
       if (bad) return send(res, 400, { error: bad });
 
+      // "setup": turn an instruction into a patient; "live": follow a running voice conversation turn by turn.
+      // Both prompts and tool lists are fixed here; the browser only picks which one.
+      const live = body.mode === 'live';
       const params = {
         model: cfg.model,
-        max_tokens: 16000,
-        system: DIRECTOR_SYSTEM,
-        tools: AGENT_TOOLS,
+        max_tokens: live ? 4000 : 16000,
+        system: live ? LIVE_DIRECTOR_SYSTEM : DIRECTOR_SYSTEM,
+        tools: live ? LIVE_TOOLS : AGENT_TOOLS,
         messages: body.messages,
         output_config: { effort: 'low' }          // a short tool-calling job: keep it quick
       };

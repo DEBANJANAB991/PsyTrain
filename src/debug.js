@@ -119,6 +119,64 @@ export function createDebugPanel(root, affect, voice = null, ctl = null) {
   // the live values drift on their own (personality), so keep the sliders in step
   setInterval(() => refresh(affect.state, affect.getBehavior()), 500);
   if (ctl) addAgentSections(root, affect, ctl);
+  if (ctl?.conversation) addLiveSection(root, voice, ctl);
+}
+
+/** Live conversation with the ElevenLabs patient agent; the live director's body-language decisions are logged. */
+function addLiveSection(root, voice, { conversation, liveDirector, liveFirst }) {
+  const box = document.createElement('div');
+  box.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+  box.innerHTML = `
+    <h3>Live conversation <span id="lstat" style="float:right;text-transform:none;letter-spacing:0;font-size:11px;opacity:.8"></span></h3>
+    <button id="lgo" style="width:100%">📞 Talk to the patient</button>
+    <div id="lhint" style="font-size:11px;opacity:.7">She answers by voice (ElevenLabs agent); her body language follows the conversation. Use headphones so she does not hear herself.</div>
+    <div id="lbody" style="font-size:12px"></div>
+    <div id="llog" style="font-size:11px;opacity:.85;white-space:pre-wrap;max-height:220px;overflow:auto"></div>`;
+  // the live patient case starts with this section at the top; otherwise it sits at the end
+  if (liveFirst) root.prepend(box); else root.append(box);
+  const q = (s) => box.querySelector(s);
+  const btn = q('#lgo'), stat = q('#lstat'), log = q('#llog'), bodyEl = q('#lbody');
+  const lines = [];
+  const add = (s) => { lines.push(s); if (lines.length > 60) lines.shift(); log.textContent = lines.join('\n'); log.scrollTop = log.scrollHeight; };
+  const showBody = () => {
+    const s = liveDirector.agent.state();
+    bodyEl.innerHTML = `Body language: <b>${s.conversationState.state}</b> · ${s.emotion} ${s.intensity.toFixed(2)}`;
+  };
+
+  (voice?.status?.checked ? Promise.resolve(voice.status) : (voice?.checkStatus() ?? Promise.resolve({}))).then((st) => {
+    if (st.agent) return;
+    btn.disabled = true;
+    q('#lhint').textContent = st.configured
+      ? 'No ElevenLabs patient agent yet: run ai-patient-voice/create_agent.py (or set ELEVENLABS_AGENT_ID in .env), then reload.'
+      : 'Needs an ElevenLabs API key in .env and the patient agent from ai-patient-voice/.';
+  });
+  liveDirector.director.checkStatus().then((st) => {
+    stat.textContent = st.configured ? `body: Claude${st.provider === 'bedrock' ? ' (Bedrock)' : ''}` : 'body: offline rules';
+  });
+
+  btn.onclick = async () => {
+    if (conversation.active) { conversation.stop(); return; }
+    lines.length = 0; add('connecting…');
+    try { await conversation.start(); } catch (e) { add('error: ' + e.message); }
+  };
+  conversation.on('status', (s) => {
+    btn.textContent = s === 'idle' ? '📞 Talk to the patient' : s === 'connecting' ? 'Connecting… (click to cancel)' : '⏹ End conversation';
+    btn.classList.toggle('active', s === 'live');
+    if (s === 'live') add('connected: speak to her');
+  });
+  conversation.on('student', (t) => add(`You: ${t}`));
+  conversation.on('patient', (t) => add(`Patient: ${t}`));
+  conversation.on('interruption', () => add('(you interrupted her)'));
+  conversation.on('ended', ({ reason }) => add(`ended: ${reason}`));
+  conversation.on('error', (e) => add('error: ' + e.message));
+  liveDirector.on('update', (u) => {
+    const what = u.calls.length ? u.calls.map((c) => `${c.result.ok ? '' : '✗ '}${c.name}(${Object.values(c.args || {}).join(', ')})`).join(', ') : 'no change';
+    add(`  ↳ body: ${what} [${u.mode}, ${(u.ms / 1000).toFixed(1)} s]`);
+    showBody();
+  });
+  liveDirector.on('error', (e) => add('  ↳ body error: ' + e.message));
+  showBody();
+  setInterval(showBody, 1000);
 }
 
 /** Personality, ranges, events and the director (natural-language control by an agent). */

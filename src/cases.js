@@ -7,6 +7,9 @@
  *              format of Personality.define() (personality.js): Big Five traits, behaviour ranges, the
  *              emotion she starts in and her arm posture. It drives face, posture, gaze and body language;
  *              the voice is not affected.
+ *              `voiceAgent: true` = she is played by the ElevenLabs patient agent (ai-patient-voice/): the student
+ *              talks to her by microphone and the live director keeps her body language in step with the
+ *              conversation. `profile` tells that director who she is.
  *   enabled    false = shown on the landing page as "coming soon"
  *
  * The 3D page is opened as consult.html?case=<key>&behavior=<key>&patient=<patient>.
@@ -25,6 +28,20 @@ export const CASES = [
     patient: 'young-woman',
     enabled: true,
     behaviors: {
+      talkative: {
+        label: 'Talkative, easily distracted (live voice)',
+        blurb: 'Mary Keller, 34. Warm and chatty, loves telling stories and easily loses the thread. Talk to her with your microphone; her body language follows the conversation.',
+        voiceAgent: true,
+        profile: 'Mary Keller, 34, event manager. Very sociable, warm and humorous, loves telling stories. Easily loses the thread and gets distracted by sounds, things in the room, her phone, or keywords like football, party and food. Wants to be liked and plays problems down; never hostile. She came because her partner Lena suggested it; the topic is her drinking, which she minimises.',
+        personality: {
+          description: 'warm, talkative storyteller who easily loses the thread',
+          traits: { ...EXTROVERT, extraversion: 0.9, agreeableness: 0.8, conscientiousness: 0.3, openness: 0.75, neuroticism: 0.4 },
+          variability: 0.3,
+          default_emotion: 'neutral',
+          default_intensity: 0.5,
+          arms: 'rest'
+        }
+      },
       shy: {
         label: 'Shy',
         blurb: 'Embarrassed and hesitant. Looks down and away, keeps her hands clasped, fidgets, and only holds eye contact for moments.',

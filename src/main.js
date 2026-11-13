@@ -5,8 +5,10 @@ import { BodyLanguage } from './bodylang.js';
 import { Gaze } from './gaze.js';
 import { Voice } from './voice.js';
 import { Personality } from './personality.js';
-import { createAgent, Director } from './agent.js';
+import { createAgent, Director, LiveDirector } from './agent.js';
+import { LiveConversation } from './conversation.js';
 import { createDebugPanel } from './debug.js';
+import { createTalkUI } from './talk-ui.js';
 import { selectedCase } from './cases.js';
 import * as THREE from 'three';
 import * as cfg from './config.js';
@@ -18,6 +20,7 @@ const { renderer, scene, camera, patientAnchor, controls, fitToPatient, roomRead
 const selection = selectedCase();
 
 let head = null, affect = null, body = null, gaze = null, voice = null, personality = null, agent = null, director = null;
+let conversation = null, liveDirector = null;
 
 (async () => {
   try {
@@ -44,7 +47,20 @@ let head = null, affect = null, body = null, gaze = null, voice = null, personal
       const name = personality.define({ name: `${selection.caseDef.key}_${selection.behaviorKey}`, ...selection.behavior.personality });
       personality.setPreset(name, { applyEmotion: true });
     }
-    createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director });
+    // live voice conversation: the ElevenLabs patient agent talks, the live director moves her body to match
+    conversation = new LiveConversation(head);
+    liveDirector = new LiveDirector(agent, director, { profile: selection?.behavior.profile || selection?.behavior.personality?.description || '' });
+    conversation.on('student', (t) => liveDirector.addStudent(t));
+    conversation.on('patient', (t) => liveDirector.addPatient(t));
+    conversation.on('correction', (t) => liveDirector.correctPatient(t));
+    conversation.on('interruption', () => liveDirector.noteInterruption());
+    conversation.on('status', (s) => { if (s === 'connecting') liveDirector.reset(); });
+    // the page is just the room and a Talk button; the full control panel is at ?debug=1
+    if (new URLSearchParams(location.search).has('debug')) {
+      createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director, conversation, liveDirector, liveFirst: Boolean(selection?.behavior.voiceAgent) });
+    } else {
+      createTalkUI(document.getElementById('talkbar'), { conversation, liveDirector, voice });
+    }
     affect.snapToPose();
     await roomReady;
     fitToPatient(head);   // wheelchair footrests under her feet (no-op for the normal chair)
@@ -52,7 +68,7 @@ let head = null, affect = null, body = null, gaze = null, voice = null, personal
     setTimeout(() => (status.style.display = 'none'), 1500);
 
     // Public handle for console tuning, tests and the later ElevenLabs bridge (track B).
-    window.patient = { cfg, head, affect, body, gaze, voice, personality, agent, director, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
+    window.patient = { cfg, head, affect, body, gaze, voice, personality, agent, director, conversation, liveDirector, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
   } catch (err) {
     console.error(err);
     status.textContent = 'Failed to load patient: ' + err.message;

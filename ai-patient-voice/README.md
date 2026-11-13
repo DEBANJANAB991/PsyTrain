@@ -12,7 +12,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Add your ElevenLabs API key to `.env`. Never commit `.env`.
+Add your ElevenLabs API key to `.env`. Never commit `.env`. If this folder's `.env` has no key, the scripts use the
+one in the PsyTrain project's `.env` (`ELEVENLABS_API_KEY` or `eleven_labs_api`).
+
+The 3D app (project root) uses this agent for live conversations: after `create_agent.py`, open the young woman →
+"Talkative, easily distracted (live voice)" on the landing page and click "Talk to the patient". Mary speaks through
+the avatar, and a separate director agent changes her body language to match what she says. See the project README,
+"Live conversation".
 
 ## Run
 

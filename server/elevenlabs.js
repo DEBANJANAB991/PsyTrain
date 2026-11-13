@@ -4,6 +4,9 @@
  *   GET  /api/voice/status  -> { configured, voiceId, model }
  *   POST /api/voice/speak   { text, voiceId? }  ->  { audio_base64, mime, alignment }
  *   POST /api/voice/transcribe  <raw audio body>  ->  { text, words:[{text,start,end}] }  (ElevenLabs speech-to-text)
+ *   GET  /api/voice/agent-session  ->  { signed_url }  a one-time WebSocket URL for a live conversation with the
+ *        ElevenLabs patient agent (ai-patient-voice/). Agent id: ELEVENLABS_AGENT_ID in .env, or the AGENT_ID that
+ *        ai-patient-voice/create_agent.py saved in ai-patient-voice/.env.
  *
  * The API key lives ONLY here (env var ELEVENLABS_API_KEY from .env), never in the browser.
  * ElevenLabs "with-timestamps" returns the audio plus per-character start/end times, which the
@@ -12,6 +15,7 @@
  * Because the dev server can be exposed through a public tunnel, requests are capped
  * (length + rate) so a stranger with the link cannot burn through your credits.
  */
+import path from 'node:path';
 import { loadEnv } from 'vite';
 
 const MAX_CHARS = 500;
@@ -52,7 +56,15 @@ function pick(env, names, pattern) {
 
 export function elevenLabsProxy() {
   let env = {};
+  let mode = 'development', root = process.cwd();
   const hits = new Map(); // ip -> [timestamps]
+
+  /** Read on every call, so running create_agent.py does not need a server restart. */
+  const agentId = () => {
+    const own = pick(env, ['ELEVENLABS_AGENT_ID'], /^eleven_?labs?_?agent(_?id)?$/i);
+    if (own) return own;
+    try { return loadEnv(mode, path.join(root, 'ai-patient-voice'), '').AGENT_ID || undefined; } catch { return undefined; }
+  };
 
   const handler = async (req, res, next) => {
     const url = (req.url || '').split('?')[0];
@@ -64,7 +76,33 @@ export function elevenLabsProxy() {
     const base = (env.ELEVENLABS_BASE_URL || 'https://api.elevenlabs.io').replace(/\/$/, '');
 
     if (url === '/api/voice/status' && req.method === 'GET') {
-      return send(res, 200, { configured: Boolean(key), voiceId, model });
+      return send(res, 200, { configured: Boolean(key), voiceId, model, agent: Boolean(key && agentId()) });
+    }
+
+    if (url === '/api/voice/agent-session' && req.method === 'GET') {
+      if (!key) return send(res, 503, { error: 'ELEVENLABS_API_KEY is not set (see .env.example)' });
+      const id = agentId();
+      if (!id) return send(res, 503, { error: 'no ElevenLabs patient agent: run ai-patient-voice/create_agent.py or set ELEVENLABS_AGENT_ID in .env' });
+      if (!/^[A-Za-z0-9_-]{8,80}$/.test(id)) return send(res, 500, { error: 'the agent id in .env does not look valid' });
+      const ip = req.socket.remoteAddress || '?';
+      const now = Date.now();
+      const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
+      if (recent.length >= MAX_PER_MINUTE) return send(res, 429, { error: 'rate limit: too many requests' });
+      recent.push(now); hits.set(ip, recent);
+      try {
+        const r = await fetch(`${base}/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(id)}`, { headers: { 'xi-api-key': key } });
+        const raw = await r.text();
+        if (!r.ok) {
+          let detail = raw.slice(0, 300);
+          try { const j = JSON.parse(raw); detail = j.detail?.message || j.detail?.status || JSON.stringify(j.detail ?? j).slice(0, 300); } catch { /* keep raw */ }
+          return send(res, r.status === 401 ? 401 : 502, { error: `ElevenLabs error ${r.status}: ${detail}` });
+        }
+        const { signed_url } = JSON.parse(raw);
+        if (!signed_url) return send(res, 502, { error: 'ElevenLabs returned no signed URL' });
+        return send(res, 200, { signed_url });
+      } catch (e) {
+        return send(res, 502, { error: 'could not reach ElevenLabs: ' + e.message });
+      }
     }
 
     if (url === '/api/voice/speak' && req.method === 'POST') {
@@ -142,7 +180,7 @@ export function elevenLabsProxy() {
 
   return {
     name: 'psytrain-elevenlabs',
-    configResolved(config) { env = loadEnv(config.mode, config.root, ''); },
+    configResolved(config) { mode = config.mode; root = config.root; env = loadEnv(config.mode, config.root, ''); },
     configureServer(server) { server.middlewares.use(handler); },
     configurePreviewServer(server) { server.middlewares.use(handler); }
   };

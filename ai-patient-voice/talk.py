@@ -3,16 +3,13 @@ import json
 import os
 import signal
 from datetime import datetime
-from pathlib import Path
-
-from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 from elevenlabs.conversational_ai.conversation import Conversation
 from elevenlabs.conversational_ai.default_audio_interface import DefaultAudioInterface
 
-APP_DIR = Path(__file__).resolve().parent
-load_dotenv(APP_DIR / ".env")
-client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
+from settings import APP_DIR, api_key
+
+client = ElevenLabs(api_key=api_key())
 agent_id = os.environ["AGENT_ID"]
 
 transcript = []

@@ -1,6 +1,6 @@
 import {
   AGENT_TOOLS, BEHAVIOR_META, BEHAVIOR_KEYS, EMOTION_NAMES, GAZE_NAMES, GESTURE_NAMES, ARM_NAMES,
-  TRAIT_NAMES, EVENT_NAMES
+  TRAIT_NAMES, EVENT_NAMES, CONVERSATION_STATES, STATE_NAMES
 } from '../shared/agent-tools.js';
 import { PRESETS } from './personality.js';
 
@@ -16,12 +16,14 @@ export function createAgent({ affect, personality }) {
   const check = (value, list, what) => {
     if (!list.includes(value)) throw new Error(`unknown ${what} "${value}". Valid: ${list.join(', ')}`);
   };
+  let convState = { state: 'engaged', strength: 0 };     // set by set_state
 
   const state = () => {
     const beh = affect.getBehavior();
     return {
       emotion: affect.state.emotion,
       intensity: round(affect.state.intensity),
+      conversationState: { ...convState },
       ...personality.describe(),
       behavior: Object.fromEntries(Object.entries(beh).map(([k, v]) => [k, typeof v === 'number' ? round(v) : v])),
       pinnedByHuman: { ...affect.overrides }
@@ -80,6 +82,28 @@ export function createAgent({ affect, personality }) {
     trigger_event: (a) => {
       const r = personality.trigger(a.event, a.strength ?? 0.7);
       return { reaction: r, ...state() };
+    },
+
+    /**
+     * A conversation state = emotion + gaze + behavior centers on top of the personality. Setting the emotion
+     * first clears the previous state's centers, so every state (and `engaged`, the baseline) starts clean.
+     */
+    set_state: (a) => {
+      check(a.state, STATE_NAMES, 'state');
+      const st = CONVERSATION_STATES[a.state];
+      const k = Math.max(0, Math.min(1, Number(a.strength ?? 0.7)));
+      const base = personality.allPresets()[personality.name.replace('*', '')] || {};
+      const emotion = st.emotion ?? base.emotion ?? 'neutral';
+      const intensity = st.emotion ? Math.max(0.2, Math.min(0.95, st.intensity * (0.5 + k))) : (base.intensity ?? 0.5);
+      personality.stateCenters = {};
+      affect.setAffect({ emotion, intensity });
+      // her baseline in this emotion, then part of the way (strength) towards the state's values. Kept in
+      // stateCenters, so a later emotion change or event adds to this state instead of wiping it.
+      const cur = affect.getBehavior();
+      personality.setStateCenters(Object.fromEntries(Object.entries(st.behavior || {}).map(([key, v]) => [key, cur[key] + (v - cur[key]) * k])));
+      if (st.gaze) affect.setAffect({ gaze: st.gaze });
+      convState = { state: a.state, strength: round(k) };
+      return state();
     }
   };
 
@@ -161,9 +185,152 @@ export class Director {
 
 /** Keep tool results short for the model: drop the long option lists it already knows. */
 function compact(result) {
-  const { ok, error, emotion, intensity, personality, traits, variability, ranges, behavior, defined, reaction, notes } = result;
+  const { ok, error, emotion, intensity, conversationState, personality, traits, variability, ranges, behavior, defined, reaction, notes } = result;
   if (result.personalities) return result;           // list_options: the model asked for it
-  return { ok, error, emotion, intensity, personality, traits, variability, ranges, behavior, defined, reaction, notes };
+  return { ok, error, emotion, intensity, conversationState, personality, traits, variability, ranges, behavior, defined, reaction, notes };
+}
+
+/** The live director may only add a gesture or a glance with set_affect; emotion comes with the state. */
+function liveAffect(args = {}) {
+  const { gesture, gaze } = args;
+  return { ...(gesture !== undefined ? { gesture } : {}), ...(gaze !== undefined ? { gaze } : {}) };
+}
+
+// ===================================================================================================
+// Live director: follows a running voice conversation and keeps her body language in step with it
+// ===================================================================================================
+
+/**
+ * The ElevenLabs patient agent decides WHAT she says (and speaks it); this decides HOW her body behaves.
+ * After every patient turn it sends the profile, the recent transcript and the latest exchange to Claude
+ * (/api/agent/step, mode "live"), which answers with set_state / set_affect / trigger_event calls that run
+ * here. One model call per turn; a turn that arrives while a call is running is merged into the next call.
+ * Without Bedrock / Anthropic credentials a few keyword rules pick the state instead.
+ *
+ * Events: on('update', fn) with { mode, state, calls, text, ms } after each decision, on('error', fn).
+ */
+export class LiveDirector {
+  constructor(agent, director, { profile = '' } = {}) {
+    this.agent = agent;
+    this.director = director;          // shares its /api/agent/status check
+    this.profile = profile;
+    this.transcript = [];
+    this.lastStudent = '';
+    this.interrupted = false;
+    this.busy = false;
+    this.pending = false;
+    this.enabled = true;
+    this.listeners = {};
+  }
+
+  on(name, fn) { (this.listeners[name] ||= new Set()).add(fn); return () => this.listeners[name].delete(fn); }
+  emit(name, data) { this.listeners[name]?.forEach((fn) => { try { fn(data); } catch (e) { console.error(e); } }); }
+
+  reset() { this.transcript = []; this.lastStudent = ''; this.interrupted = false; this.pending = false; }
+
+  addStudent(text) {
+    text = String(text || '').trim();
+    if (!text) return;
+    this.transcript.push({ who: 'Therapist', text });
+    this.lastStudent = text;
+  }
+
+  noteInterruption() { this.interrupted = true; }
+
+  addPatient(text) {
+    text = String(text || '').trim();
+    if (!text) return;
+    this.transcript.push({ who: 'Patient', text });
+    if (this.transcript.length > 40) this.transcript.splice(0, this.transcript.length - 40);
+    if (!this.lastStudent) return;                 // her opening greeting: nothing to react to yet
+    this.observe();
+  }
+
+  /** After an interruption ElevenLabs reports the part she actually said. */
+  correctPatient(text) {
+    const last = [...this.transcript].reverse().find((l) => l.who === 'Patient');
+    if (last && text) last.text = String(text).trim();
+  }
+
+  async observe() {
+    if (!this.enabled) return;
+    if (this.busy) { this.pending = true; return; }
+    this.busy = true;
+    try { await this._decide(); }
+    catch (e) { this.emit('error', e); }
+    finally {
+      this.busy = false;
+      if (this.pending) { this.pending = false; this.observe(); }
+    }
+  }
+
+  async _decide() {
+    const t0 = performance.now();
+    const lastPatient = [...this.transcript].reverse().find((l) => l.who === 'Patient')?.text || '';
+    const student = this.lastStudent, interrupted = this.interrupted;
+    this.interrupted = false;
+    if (!this.director.status) await this.director.checkStatus();
+
+    const offline = (mode) => {
+      const want = offlineState(lastPatient, student);
+      const calls = [];
+      if (want !== this.agent.state().conversationState.state) {
+        const result = this.agent.execute('set_state', { state: want, strength: 0.7 });
+        calls.push({ name: 'set_state', args: { state: want, strength: 0.7 }, result });
+      }
+      this.emit('update', { mode, state: this.agent.state().conversationState.state, calls, text: '', ms: Math.round(performance.now() - t0) });
+    };
+    if (!this.director.status.configured) return offline('offline');
+    // if Claude fails (expired credentials, model not enabled, ...) the keyword rules keep the body in step
+    try { await this._claude(lastPatient, student, interrupted, t0); }
+    catch (e) { this.emit('error', e); offline('offline fallback'); }
+  }
+
+  async _claude(lastPatient, student, interrupted, t0) {
+    const s = this.agent.state();
+    const cut = (x, n) => (x.length > n ? x.slice(0, n - 1) + '…' : x);
+    const recent = this.transcript.slice(-9, -1).map((l) => `${l.who}: ${cut(l.text, 400)}`).join('\n') || '(start of the conversation)';
+    const content = [
+      `Patient profile: ${cut(this.profile || s.description || 'not given', 600)}`,
+      `Recent transcript:\n${recent}`,
+      `Latest exchange:\nTherapist: ${cut(student, 600)}${interrupted ? '\n(The therapist interrupted her previous answer.)' : ''}\nPatient (saying this now): ${cut(lastPatient, 1200)}`,
+      `Her current state: ${s.conversationState.state} (strength ${s.conversationState.strength}), emotion ${s.emotion} at ${s.intensity}.`
+    ].join('\n\n');
+
+    const messages = [{ role: 'user', content }];
+    const calls = [];
+    let text = '';
+    for (let round = 0; round < 2; round++) {
+      const r = await fetch('/api/agent/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages, mode: 'live' }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `director error ${r.status}`);
+      if (j.stop_reason === 'refusal') throw new Error('the model declined this turn');
+      text = j.content.filter((b) => b.type === 'text').map((b) => b.text).join(' ').trim();
+      const uses = j.content.filter((b) => b.type === 'tool_use');
+      if (!uses.length) break;
+      const results = uses.map((u) => {
+        const args = u.name === 'set_affect' ? liveAffect(u.input) : u.input;
+        const result = this.agent.execute(u.name, args);
+        calls.push({ name: u.name, args, result });
+        return { type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(compact(result)), is_error: !result.ok };
+      });
+      if (results.every((x) => !x.is_error)) break;             // done: only go back to the model to fix an error
+      messages.push({ role: 'assistant', content: j.content }, { role: 'user', content: results });
+    }
+    this.emit('update', { mode: 'claude', state: this.agent.state().conversationState.state, calls, text, ms: Math.round(performance.now() - t0) });
+  }
+}
+
+/** Offline stand-in for the live director: keyword cues in her answer (and the therapist's question). */
+export function offlineState(patient, student = '') {
+  const p = patient.toLowerCase(), s = student.toLowerCase();
+  if (/\b(just answer|stop (talking|rambling)|why can'?t you|that'?s not what i asked|be serious)\b/.test(s)) return 'hesitant';
+  if (/\b(football|soccer|match|party|parties|phone|food|pizza|snack|by the way|anyway|where was i|that reminds me|did you hear|is that a|this room|picture|plant|window)\b/.test(p)) {
+    return /\b(haha|funny|laugh|story|once|you should have seen)\b/.test(p) ? 'storytelling' : 'distracted';
+  }
+  if (/\b(drink|drinking|beer|beers|lena|argue|argument|arguments|hangover|cut down)\b/.test(p)) return 'uneasy';
+  if (/\b(i understand|that sounds|makes sense|thank you for|i hear you|that must be)\b/.test(s)) return 'at_ease';
+  return 'engaged';
 }
 
 // ---- offline rules -----------------------------------------------------------------------------------

@@ -30,6 +30,26 @@ export const BEHAVIOR_META = {
 };
 export const BEHAVIOR_KEYS = Object.keys(BEHAVIOR_META);
 
+/**
+ * Conversation states: what she is doing in the conversation right now, as a bundle of emotion, gaze and
+ * behavior centers on top of her personality. `engaged` is her baseline (the personality's own emotion, no
+ * extra centers), so switching back to it undoes any other state. Used by the live director (set_state).
+ */
+export const CONVERSATION_STATES = {
+  engaged:      { what: 'on topic and attentive: answers the question with normal eye contact. Her baseline; use it to bring her back from any other state', gaze: 'student' },
+  distracted:   { what: 'loses the thread: drifts off topic, her attention goes to the room, a sound, her phone or a keyword', gaze: 'around',
+                  behavior: { lookAround: 0.8, gazeStudent: 0.25, shift: 0.55, fidget: 0.55, headMotion: 0.7 } },
+  storytelling: { what: 'animated anecdote or joke that she enjoys telling', emotion: 'excited', intensity: 0.55,
+                  behavior: { headMotion: 0.85, shift: 0.5, gazeStudent: 0.6, lookAround: 0.35 } },
+  uneasy:       { what: 'a touchy topic she plays down, a little embarrassed', emotion: 'tense', intensity: 0.5, gaze: 'down',
+                  behavior: { gazeStudent: 0.3, fidget: 0.65, lookAround: 0.35, footTap: 0.35, shift: 0.35 } },
+  hesitant:     { what: 'unsure after a brusque or reproachful remark: short, careful answers', emotion: 'withdrawn', intensity: 0.5, gaze: 'down',
+                  behavior: { gazeStudent: 0.35, fidget: 0.45, headMotion: 0.25, shift: 0.15, lookAround: 0.2 } },
+  at_ease:      { what: 'relaxed and open after empathy, validation or a shared laugh', emotion: 'relieved', intensity: 0.5, gaze: 'student',
+                  behavior: { gazeStudent: 0.8, fidget: 0.15, lookAround: 0.15, footTap: 0, legBounce: 0 } }
+};
+export const STATE_NAMES = Object.keys(CONVERSATION_STATES);
+
 const num = (description, min, max) => ({ type: 'number', description, minimum: min, maximum: max });
 const behaviorProps = () => Object.fromEntries(BEHAVIOR_KEYS.map((k) => [k, num(`${BEHAVIOR_META[k].what} (${BEHAVIOR_META[k].min} to ${BEHAVIOR_META[k].max})`, BEHAVIOR_META[k].min, BEHAVIOR_META[k].max)]));
 const rangeProps = () => Object.fromEntries(BEHAVIOR_KEYS.map((k) => [k, {
@@ -137,8 +157,27 @@ export const AGENT_TOOLS = [
       required: ['event'],
       additionalProperties: false
     }
+  },
+  {
+    name: 'set_state',
+    description:
+      'Put her into a conversation state that matches what she is doing right now. Each state sets her emotion, gaze and body language on top of her personality; ' +
+      'engaged is her baseline and undoes any other state. ' + STATE_NAMES.map((s) => `${s}: ${CONVERSATION_STATES[s].what}.`).join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        state: { type: 'string', enum: STATE_NAMES },
+        strength: num('how strongly she shows it, 0..1 (default 0.7)', 0, 1)
+      },
+      required: ['state'],
+      additionalProperties: false
+    }
   }
 ];
+
+/** The tools the live director may use: small, so each per-turn call stays quick. */
+export const LIVE_TOOL_NAMES = ['set_state', 'set_affect', 'trigger_event'];
+export const LIVE_TOOLS = AGENT_TOOLS.filter((t) => LIVE_TOOL_NAMES.includes(t.name));
 
 export const DIRECTOR_SYSTEM = `You are the director of a virtual patient in a medical history-taking training simulation. A medical student interviews the patient (a 3D avatar). You never speak as the patient; you only control how she behaves, using the tools.
 
@@ -153,3 +192,18 @@ How to work:
 - Keep it realistic: most people are moderate, so avoid pushing many values to their extremes at once. Intensity around 0.5 to 0.7 reads as natural; use more only for a strong reaction.
 - If you are unsure what is valid, call list_options. If a tool returns an error, read it and correct the call.
 - When done, reply in one or two plain sentences saying what you set up, with no lists or markup.`;
+
+export const LIVE_DIRECTOR_SYSTEM = `You direct the body language of a virtual patient (a 3D avatar) during a LIVE voice conversation in a psychotherapy training simulation. A trainee therapist talks with the patient. A separate voice agent plays the patient and decides what she says; you never speak, you only decide how her body behaves so that it matches what she is saying and how the conversation is going.
+
+Each message gives you the patient profile, the recent transcript, the latest exchange (what the therapist said and the answer she is giving right now) and her current conversation state and emotion.
+
+How to decide:
+- Choose the conversation state that fits her CURRENT answer and apply it with set_state (strength 0.4 to 0.9): engaged, distracted, storytelling, uneasy, hesitant or at_ease.
+- Distraction: she drifts into a tangent, mentions sounds or things in the room, her phone, food, football or parties, or loses the thread ("where was I"). Use distracted, or storytelling for an animated, happy anecdote.
+- Back to normal: when she answers to the point again (a focused, concrete answer, often after the therapist names the tangent, interrupts her politely or repeats the question), switch to engaged. Never leave her in a state that no longer fits.
+- Attention comes first: a plain, concrete answer to the question is engaged, even when the topic is her drinking.
+- uneasy only when she visibly squirms: hedging, minimising, laughing a touchy topic off, or changing the subject away from it. A brusque or reproachful therapist: hesitant. Empathy, validation or a shared laugh: at_ease.
+- Optionally add one gesture with set_affect (only gesture or a brief gaze; the state already sets her emotion) when it clearly fits her words: nod when she agrees, shrug when she plays something down, shake when she denies. Use trigger_event only for a clear one-off moment (interruption, accusation, reassurance, sensitive_question), at most one per turn.
+- If her current state already fits, call no tools.
+- Make all tool calls in this one turn. Do not ask for more information.
+- Then reply with at most one short plain sentence naming the state you chose.`;
