@@ -3,8 +3,7 @@ from pathlib import Path
 PATIENT_NAME = "Mary Keller"
 AGENT_NAME = "Patient - Mary Keller"
 VOICE_ID = "cgSgspJ2msm6clMCkdW9"
-# Empty: the patient waits for the therapist to speak first.
-FIRST_MESSAGE = ""
+FIRST_MESSAGE = "Hello"
 PROMPT_PATH = Path(__file__).resolve().parent / "patient_prompt.txt"
 
 
@@ -17,7 +16,7 @@ def conversation_config(system_prompt):
         },
         "turn": {
             "turn_timeout": 30,
-            "turn_eagerness": "eager",
+            "turn_eagerness": "normal",  # "eager" can cut the student off mid-question
             "mode": "turn",
             "speculative_turn": True,
             "turn_model": "turn_v3",
@@ -46,9 +45,11 @@ def conversation_config(system_prompt):
             "disable_first_message_interruptions": False,
             "prompt": {
                 "prompt": system_prompt,
-                "llm": "gpt-4o-mini",
+                # gpt-4o-mini ignores the disclosure rules too easily.
+                # This model name worked in your earlier agent config.
+                "llm": "claude-sonnet-5-5",
                 "service_tier": "standard",
-                "temperature": 0,
+                "temperature": 0.6,  # 0 makes every tangent the same
                 "max_tokens": 180,
                 "tool_ids": [],
                 "tool_ids_strict": False,
