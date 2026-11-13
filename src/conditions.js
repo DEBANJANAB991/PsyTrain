@@ -9,32 +9,61 @@ import * as THREE from 'three';
  *   coverLogos(head, covers)       hide vendor logos on clothes by copying plain fabric over them
  */
 
-// Splats are placed in a face frame measured from the avatar's eyes, in metres:
-//   x = towards HER left, y = up, both relative to the point midway between the eyes.
-// Each splat is projected onto the head mesh, so the same preset fits every avatar.
-//   r      radius (m)            drip   length of a run downwards (m), 0 = none
-//   a      opacity 0..1          core   darker clotted centre      smear  wide, faint wipe
+// Marks are placed in a face frame measured from the avatar's eyes, in metres:
+//   x = towards HER left, y = up, both relative to the point midway between the eyes
+//   (eyebrows ~ y 0.025, nose tip ~ y -0.045, cheekbones ~ x ±0.05).
+// Every point is projected onto the head mesh, so the same preset fits every avatar.
+//
+//   splat   { x, y, r, a, color, lumps?, spread?, stretch?, hard? }
+//           r radius, a opacity 0..1; lumps > 1 = irregular cluster of jittered ellipses
+//   stroke  { path: [[x, y], ...], w | [w0, w1], a, color, hard?, streaks?, dry?, wobble? }
+//           smooth curve through path, width tapering w0 -> w1; streaks = n finger/bristle lines
+//           across the width; dry = broken, faded ends; wobble = sideways waver (m)
+// color is a key of the preset's colors or any CSS colour.
 export const FACE_PAINT = {
-  // cut above the LEFT brow (side-swept fringes usually cover the right forehead), blood run down
-  // towards the brow, and a faint wiped smear on the same cheek
-  'forehead-wound': {
-    color: '#7d0b0b', dark: '#3d0505', smear: '#a3221b',
-    splats: [
-      { x: 0.024, y: 0.052, r: 0.012, a: 0.95, drip: 0.0, core: true },
-      { x: 0.034, y: 0.056, r: 0.008, a: 0.85, drip: 0.0 },
-      { x: 0.016, y: 0.046, r: 0.007, a: 0.85, drip: 0.03 },
-      { x: 0.030, y: 0.045, r: 0.006, a: 0.8, drip: 0.026 },
-      { x: 0.023, y: 0.040, r: 0.005, a: 0.75, drip: 0.018 },
-      { x: 0.048, y: -0.032, r: 0.013, a: 0.22, drip: 0.0, smear: true }
+  // red paint finger-smeared across the face (e.g. agitated / psychotic presentation)
+  'red-paint': {
+    colors: { paint: '#c0121a' },
+    marks: [
+      // three finger streaks across her left cheek
+      { path: [[0.02, -0.022], [0.042, -0.027], [0.066, -0.021]], w: [0.008, 0.006], a: 0.92, color: 'paint', hard: true, streaks: 3, dry: true },
+      { path: [[0.022, -0.036], [0.044, -0.042], [0.067, -0.036]], w: [0.008, 0.006], a: 0.9, color: 'paint', hard: true, streaks: 3, dry: true },
+      { path: [[0.026, -0.05], [0.046, -0.056], [0.066, -0.051]], w: [0.007, 0.005], a: 0.85, color: 'paint', hard: true, streaks: 3, dry: true },
+      // one smudged streak on the right cheek
+      { path: [[-0.022, -0.03], [-0.045, -0.036], [-0.064, -0.031]], w: [0.009, 0.005], a: 0.7, color: 'paint', streaks: 4, dry: true },
+      // swipe across the left forehead (clear of side-swept fringes)
+      { path: [[-0.01, 0.036], [0.018, 0.043], [0.048, 0.038]], w: [0.01, 0.007], a: 0.85, color: 'paint', hard: true, streaks: 4, dry: true }
     ]
   },
-  // dried blood under the left nostril and on the upper lip (nosebleed)
+  // cut above the LEFT brow (side-swept fringes usually cover the right forehead), blood running
+  // down towards the brow, and blood wiped across the same cheek
+  'forehead-wound': {
+    colors: { blood: '#8e1212', dark: '#520808', bruise: '#6e3640', smear: '#a3271f' },
+    marks: [
+      // swollen, bruised skin around the cut
+      { x: 0.027, y: 0.052, r: 0.018, a: 0.35, color: 'bruise', lumps: 6, spread: 0.5, stretch: 1.3 },
+      // dried blood crusted around the cut
+      { x: 0.026, y: 0.051, r: 0.007, a: 0.95, color: 'blood', lumps: 8, spread: 0.8, stretch: 1.7 },
+      // the cut itself: a short, slightly diagonal gaping line, wider in the middle
+      { path: [[0.018, 0.049], [0.026, 0.0515], [0.035, 0.0535]], w: [0.0012, 0.0012], a: 0.9, color: 'dark', hard: true },
+      { path: [[0.022, 0.0502], [0.026, 0.0515], [0.031, 0.0527]], w: [0.0024, 0.0018], a: 0.9, color: 'dark', hard: true },
+      // runs of blood towards the brow, each ending in a small bead
+      { path: [[0.018, 0.049], [0.0185, 0.04], [0.017, 0.03]], w: [0.0034, 0.0018], a: 0.85, color: 'blood', wobble: 0.0006 },
+      { path: [[0.027, 0.051], [0.028, 0.043], [0.0275, 0.037]], w: [0.0028, 0.0016], a: 0.8, color: 'blood', wobble: 0.0005 },
+      { path: [[0.035, 0.053], [0.0355, 0.046]], w: [0.0022, 0.0012], a: 0.75, color: 'blood' },
+      { x: 0.017, y: 0.03, r: 0.0018, a: 0.85, color: 'blood' },
+      { x: 0.0275, y: 0.037, r: 0.0015, a: 0.8, color: 'blood' },
+      // blood wiped across the cheek with the back of a hand
+      { path: [[0.03, -0.022], [0.048, -0.032], [0.064, -0.046]], w: [0.012, 0.007], a: 0.45, color: 'smear', streaks: 4, dry: true }
+    ]
+  },
+  // dried blood under the left nostril and on the upper lip
   nosebleed: {
-    color: '#6e0909', dark: '#360404', smear: '#9a1f19',
-    splats: [
-      { x: 0.006, y: -0.058, r: 0.005, a: 0.9, drip: 0.012, core: true },
-      { x: 0.004, y: -0.066, r: 0.006, a: 0.8, drip: 0.0 },
-      { x: 0.012, y: -0.07, r: 0.008, a: 0.35, drip: 0.0, smear: true }
+    colors: { blood: '#6e0909', dark: '#360404', smear: '#9a1f19' },
+    marks: [
+      { x: 0.006, y: -0.056, r: 0.004, a: 0.85, color: 'blood', lumps: 4, spread: 0.6 },
+      { path: [[0.006, -0.056], [0.007, -0.066], [0.006, -0.072]], w: [0.004, 0.002], a: 0.8, color: 'blood', wobble: 0.0005 },
+      { path: [[0.0, -0.066], [0.02, -0.074]], w: 0.008, a: 0.25, color: 'smear', streaks: 3, dry: true }
     ]
   }
 };
@@ -48,43 +77,67 @@ export function applyFacePaint(head, preset) {
 
   const frame = faceFrame(mesh, head.armature);
   if (!frame) { console.warn('[conditions] no eye bones, cannot place face paint'); return; }
+  const proxy = posedProxy(mesh);      // raycasting a skinned mesh re-skins every vertex per ray
 
   const { canvas, ctx, W, H } = textureCanvas(mesh.material.map);
   const rand = rng(17);
   const k = frame.scale;
-  const report = [];
-  for (const s of P.splats) {
-    const target = frame.origin.clone().addScaledVector(frame.right, s.x * k).addScaledVector(frame.up, s.y * k);
-    const hit = projectToSurface(mesh, target, frame);
-    report.push(hit ? { u: +hit.u.toFixed(3), v: +hit.v.toFixed(3) } : null);
-    if (!hit) continue;
-    const { u, v, du, dv } = hit;           // UV centre + UV change per preset-metre along right / up
-    const px = u * W, py = v * H;
-    const axisR = [du.x * W * k, du.y * H * k], axisU = [dv.x * W * k, dv.y * H * k];
-    // irregular blob = a few jittered ellipses in the local surface frame
-    const lumps = s.smear ? 9 : 6;
+  const col = (c) => P.colors?.[c] ?? c;
+  let missed = 0;
+  // face-frame point -> texture pixel + pixel axes per preset-metre along right / up
+  const at = (x, y) => {
+    const target = frame.origin.clone().addScaledVector(frame.right, x * k).addScaledVector(frame.up, y * k);
+    const hit = projectToSurface(proxy, target, frame);
+    if (!hit) { missed++; return null; }
+    return { px: hit.u * W, py: hit.v * H, aR: [hit.du.x * W * k, hit.du.y * H * k], aU: [hit.dv.x * W * k, hit.dv.y * H * k] };
+  };
+
+  for (const m of P.marks) {
+    if (m.path) { stroke(ctx, m, at, col(m.color), rand); continue; }
+    const s = at(m.x, m.y);
+    if (!s) continue;
+    const lumps = m.lumps ?? 1, spread = m.spread ?? 0.4, st = m.stretch ?? 1;
+    // overlapping lumps accumulate, so each gets a share of the target opacity
+    const a = lumps > 1 ? 1 - (1 - m.a) ** (1 / Math.max(1, lumps * 0.5)) : m.a;
     for (let i = 0; i < lumps; i++) {
-      const ang = rand() * Math.PI * 2, d = s.r * (s.smear ? 0.9 : 0.45) * rand();
-      const ox = Math.cos(ang) * d * (s.smear ? 1.8 : 1), oy = Math.sin(ang) * d * 0.7;
-      const rr = s.r * (0.45 + 0.5 * rand());
-      blob(ctx, px + axisR[0] * ox + axisU[0] * oy, py + axisR[1] * ox + axisU[1] * oy, axisR, axisU, rr * (s.smear ? 1.6 : 1), rr, P.color, s.a * (s.smear ? 0.6 : 0.85));
-    }
-    if (s.core) blob(ctx, px, py, axisR, axisU, s.r * 0.35, s.r * 0.25, P.dark, 0.9);
-    // drip: tapered run straight down the surface, slightly wobbly
-    if (s.drip > 0) {
-      const steps = 14;
-      for (let k = 1; k <= steps; k++) {
-        const f = k / steps, wob = Math.sin(f * 5 + rand() * 2) * 0.0015;
-        const ox = wob, oy = -s.drip * f;
-        const rr = s.r * 0.32 * (1 - 0.65 * f);
-        blob(ctx, px + axisR[0] * ox + axisU[0] * oy, py + axisR[1] * ox + axisU[1] * oy, axisR, axisU, rr, rr * 1.3, P.color, s.a * 0.9);
-      }
-      const ox = 0, oy = -s.drip;                                   // drop at the end of the run
-      blob(ctx, px + axisR[0] * ox + axisU[0] * oy, py + axisR[1] * ox + axisU[1] * oy, axisR, axisU, s.r * 0.22, s.r * 0.28, P.dark, 0.85);
+      const ang = rand() * Math.PI * 2, d = lumps > 1 ? m.r * spread * rand() : 0;
+      const ox = Math.cos(ang) * d * st, oy = Math.sin(ang) * d;
+      const rr = lumps > 1 ? m.r * (0.5 + 0.5 * rand()) : m.r;
+      dab(ctx, s.px + s.aR[0] * ox + s.aU[0] * oy, s.py + s.aR[1] * ox + s.aU[1] * oy, s.aR, s.aU, rr * st, rr, col(m.color), a, m.hard);
     }
   }
   replaceMap(mesh.material, canvas);
-  return { mesh: mesh.name, texture: `${W}x${H}`, splats: report };
+  proxy.geometry.dispose();
+  return { mesh: mesh.name, texture: `${W}x${H}`, marks: P.marks.length, missed };
+}
+
+/** Dense dabs along a smooth curve, each projected onto the face so the stroke follows its shape. */
+function stroke(ctx, m, at, color, rand) {
+  const curve = new THREE.CatmullRomCurve3(m.path.map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  const len = curve.getLength();
+  const [w0, w1] = Array.isArray(m.w) ? m.w : [m.w, m.w];
+  const n = m.streaks ?? 1;
+  for (let j = 0; j < n; j++) {
+    const off = n === 1 ? 0 : (j / (n - 1) - 0.5) * 0.75;           // lateral position, fraction of width
+    const end = n === 1 ? 1 : 0.72 + 0.28 * rand();                  // streaks run out at different points
+    const sa = m.a * (n === 1 ? 1 : 0.7 + 0.3 * rand());
+    const phase = rand() * 10;
+    for (let f = 0; f <= end;) {
+      const p = curve.getPointAt(Math.min(f, 1)), t = curve.getTangentAt(Math.min(f, 1));
+      const full = w0 + (w1 - w0) * f;
+      const w = (n === 1 ? full : full / (n * 0.6)) * (1 + 0.12 * Math.sin(f * len * 900 + phase));
+      const lat = off * full + (m.wobble ?? 0) * Math.sin(f * len * 300 + phase);
+      const step = Math.max(w * 0.35, 0.0005);
+      f += step / len;
+      // dry brush: towards the end the paint fades and breaks up
+      const fade = m.dry ? Math.min(1, Math.max(0, (end - f) / 0.25)) : 1;
+      if (fade <= 0 || (m.dry && rand() > fade + 0.15)) continue;
+      const s = at(p.x - t.y * lat, p.y + t.x * lat);
+      if (!s) continue;
+      const a = 1 - (1 - sa * fade) ** (1 / Math.max(1, w / step));  // per-dab share of the opacity
+      dab(ctx, s.px, s.py, s.aR, s.aU, w / 2, w / 2, color, a, m.hard);
+    }
+  }
 }
 
 /**
@@ -141,7 +194,7 @@ function findHeadMesh(root) {
  */
 function faceFrame(mesh, root) {
   root.updateMatrixWorld(true);
-  mesh.skeleton.update();                      // raycasting a skinned mesh uses the bone matrices
+  mesh.skeleton.update();                      // getVertexPosition on a skinned mesh uses the bone matrices
   const eye = (name) => root.getObjectByName(name)?.getWorldPosition(new THREE.Vector3());
   const L = eye('LeftEye'), R = eye('RightEye');
   if (!L || !R) return null;
@@ -183,14 +236,28 @@ function projectToSurface(mesh, target, { forward, right, up, scale }) {
   return { u, v, du, dv };
 }
 
-function blob(ctx, x, y, axisR, axisU, rx, ry, color, alpha) {
+/** Static world-space copy of the skinned + morphed head in its current pose, for cheap raycasts. */
+function posedProxy(mesh) {
+  const src = mesh.geometry, n = src.attributes.position.count;
+  const pos = new Float32Array(n * 3), v = new THREE.Vector3();
+  for (let i = 0; i < n; i++) mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld).toArray(pos, i * 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('uv', src.attributes.uv);
+  if (src.index) g.setIndex(src.index);
+  const proxy = new THREE.Mesh(g, mesh.material);
+  proxy.updateMatrixWorld(true);
+  return proxy;
+}
+
+function dab(ctx, x, y, axisR, axisU, rx, ry, color, alpha, hard = false) {
   ctx.save();
   ctx.setTransform(axisR[0] * rx, axisR[1] * rx, axisU[0] * ry, axisU[1] * ry, x, y);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
   const c = new THREE.Color(color);
   const rgb = `${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)}`;
   g.addColorStop(0, `rgba(${rgb},${alpha})`);
-  g.addColorStop(0.65, `rgba(${rgb},${alpha * 0.85})`);
+  g.addColorStop(hard ? 0.8 : 0.5, `rgba(${rgb},${alpha * (hard ? 1 : 0.8)})`);
   g.addColorStop(1, `rgba(${rgb},0)`);
   ctx.globalCompositeOperation = 'source-atop';   // keep the texture's alpha (masked heads)
   ctx.fillStyle = g;

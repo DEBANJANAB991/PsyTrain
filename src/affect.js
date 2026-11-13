@@ -27,6 +27,7 @@ export class Affect {
     this.shiftOffset = {};        // posture-shift deltas from the body-language layer
     this.bodyLang = null;         // set by main.js
     this.gaze = null;             // set by main.js
+    this.personality = null;      // set by main.js (personality.js)
     this.listeners = new Set();
     this.poseCache = this._makeStraightBase();
     this._lockSeated();
@@ -68,7 +69,8 @@ export class Affect {
     for (const k of Object.keys(a)) {
       out[k] = typeof a[k] === 'number' ? a[k] + (b[k] - a[k]) * intensity : b[k];
     }
-    return Object.assign(out, this.overrides);
+    this.personality?.apply(out);          // traits, ranges, drift, events (see personality.js)
+    return Object.assign(out, this.overrides);   // human pins (sliders) win
   }
 
   setAffect(input = {}) {
@@ -78,7 +80,7 @@ export class Affect {
     if (emotion !== undefined) {
       if (!EMOTIONS.includes(emotion)) { console.warn('[affect] unknown emotion', emotion); emotion = s.emotion; }
       s.emotion = emotion;
-      if (input.behavior === undefined) this.overrides = {};   // new emotion = fresh behaviour
+      if (input.behavior === undefined) { this.overrides = {}; this.personality?.clearCenters(); }   // new emotion = fresh behaviour
     }
     if (intensity !== undefined) s.intensity = clamp01(intensity);
     if (behavior === null) this.overrides = {};

@@ -4,6 +4,8 @@ import { Affect } from './affect.js';
 import { BodyLanguage } from './bodylang.js';
 import { Gaze } from './gaze.js';
 import { Voice } from './voice.js';
+import { Personality } from './personality.js';
+import { createAgent, Director } from './agent.js';
 import { createDebugPanel } from './debug.js';
 import * as THREE from 'three';
 import * as cfg from './config.js';
@@ -12,7 +14,7 @@ const status = document.getElementById('status');
 const app = document.getElementById('app');
 const { renderer, scene, camera, patientAnchor, controls, fitToPatient } = createScene(app);
 
-let head = null, affect = null, body = null, gaze = null, voice = null;
+let head = null, affect = null, body = null, gaze = null, voice = null, personality = null, agent = null, director = null;
 
 (async () => {
   try {
@@ -30,7 +32,10 @@ let head = null, affect = null, body = null, gaze = null, voice = null;
     });
     affect.gaze = gaze;
     voice = new Voice(head, affect);
-    createDebugPanel(document.getElementById('debug'), affect, voice);
+    personality = new Personality(affect);
+    agent = createAgent({ affect, personality });
+    director = new Director(agent);
+    createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director });
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
     affect.snapToPose();
     fitToPatient(head);   // wheelchair footrests under her feet (no-op for the normal chair)
@@ -38,7 +43,7 @@ let head = null, affect = null, body = null, gaze = null, voice = null;
     setTimeout(() => (status.style.display = 'none'), 1500);
 
     // Public handle for console tuning, tests and the later ElevenLabs bridge (track B).
-    window.patient = { cfg, head, affect, body, gaze, voice, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
+    window.patient = { cfg, head, affect, body, gaze, voice, personality, agent, director, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
   } catch (err) {
     console.error(err);
     status.textContent = 'Failed to load patient: ' + err.message;
@@ -50,7 +55,7 @@ timer.connect(document);   // no huge delta after the tab was hidden
 renderer.setAnimationLoop((time) => {
   timer.update(time);
   const dt = Math.min(timer.getDelta() * 1000, 100);
-  if (head) { body?.update(dt); head.animate(dt); gaze?.update(dt); }
+  if (head) { personality?.update(dt); body?.update(dt); head.animate(dt); gaze?.update(dt); }
   if (!renderer.xr.isPresenting) controls.update();
   renderer.render(scene, camera);
 });

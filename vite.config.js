@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite';
 import { elevenLabsProxy } from './server/elevenlabs.js';
+import { agentProxy } from './server/agent.js';
 
 export default defineConfig({
-  plugins: [elevenLabsProxy()],
+  plugins: [elevenLabsProxy(), agentProxy()],
   server: {
     host: true,
     port: 5173,

@@ -74,13 +74,15 @@ export const AVATARS = {
 // Patients = an avatar + optional visible conditions. Pick one with ?patient=<key> (debug panel has a
 // dropdown). Conditions:
 //   seat       'chair' (default) | 'wheelchair'
-//   facePaint  red paint on the face (fake blood / wound), see FACE_PAINT below; null = none
+//   facePaint  'red-paint' | 'forehead-wound' | 'nosebleed' (FACE_PAINT in conditions.js); null = none
 export const PATIENTS = {
   'young-woman':            { label: 'Young woman', avatar: 'avaturn' },
   'young-man':              { label: 'Young man', avatar: 'avatarsdk' },
   'man-wheelchair':         { label: 'Man in a wheelchair', avatar: 'avatarsdk', seat: 'wheelchair' },
-  'young-woman-face-paint': { label: 'Young woman, red paint on face', avatar: 'avaturn', facePaint: 'forehead-wound' },
-  'young-man-face-paint':   { label: 'Young man, red paint on face', avatar: 'avatarsdk', facePaint: 'forehead-wound' },
+  'young-woman-face-paint': { label: 'Young woman, red paint on face', avatar: 'avaturn', facePaint: 'red-paint' },
+  'young-man-face-paint':   { label: 'Young man, red paint on face', avatar: 'avatarsdk', facePaint: 'red-paint' },
+  'young-woman-head-wound': { label: 'Young woman, bleeding forehead cut', avatar: 'avaturn', facePaint: 'forehead-wound' },
+  'young-man-head-wound':   { label: 'Young man, bleeding forehead cut', avatar: 'avatarsdk', facePaint: 'forehead-wound' },
   'mpfb-woman':             { label: 'MPFB woman (CC0)', avatar: 'mpfb' }
 };
 const params = new URLSearchParams(globalThis.location?.search ?? '');
