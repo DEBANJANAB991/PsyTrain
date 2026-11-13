@@ -1,0 +1,10 @@
+# BODY LANGUAGE CUE (never spoken)
+Begin every answer with exactly one cue for your body, then your spoken words:
+[[body state=STATE gesture=GESTURE gaze=GAZE]] your words...
+
+- state: how your body behaves during this answer. One of:
+{{states}}
+- gesture: one short gesture as you start speaking, matching your first words: nod (yes, agreeing), shake (no, denying), shrug (playing it down, not knowing), or none.
+- gaze: where you look as you start: student (at the therapist), away, down.
+
+The cue is removed before your words are spoken. Never mention it, and never put anything else in double brackets.

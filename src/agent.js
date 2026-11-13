@@ -1,6 +1,6 @@
 import {
   AGENT_TOOLS, BEHAVIOR_META, BEHAVIOR_KEYS, EMOTION_NAMES, GAZE_NAMES, GESTURE_NAMES, ARM_NAMES,
-  TRAIT_NAMES, EVENT_NAMES, CONVERSATION_STATES, STATE_NAMES
+  TRAIT_NAMES, EVENT_NAMES, CONVERSATION_STATES, STATE_NAMES, MODE_STATES, NORMAL_BASE, modeStates
 } from '../shared/agent-tools.js';
 import { PRESETS } from './personality.js';
 
@@ -210,10 +210,12 @@ function liveAffect(args = {}) {
  * Events: on('update', fn) with { mode, state, calls, text, ms } after each decision, on('error', fn).
  */
 export class LiveDirector {
-  constructor(agent, director, { profile = '' } = {}) {
+  constructor(agent, director, { profile = '', situation = null } = {}) {
     this.agent = agent;
     this.director = director;          // shares its /api/agent/status check
     this.profile = profile;
+    this.situation = situation;        // landing-page situation (distracted, aggressive): sets where "normal" starts
+    this.convMode = null;              // the orchestrator's mode (normal / distracted); null = no orchestrator
     this.transcript = [];
     this.lastStudent = '';
     this.interrupted = false;
@@ -226,7 +228,62 @@ export class LiveDirector {
   on(name, fn) { (this.listeners[name] ||= new Set()).add(fn); return () => this.listeners[name].delete(fn); }
   emit(name, data) { this.listeners[name]?.forEach((fn) => { try { fn(data); } catch (e) { console.error(e); } }); }
 
-  reset() { this.transcript = []; this.lastStudent = ''; this.interrupted = false; this.pending = false; }
+  reset() {
+    this.transcript = []; this.lastStudent = ''; this.interrupted = false; this.pending = false;
+    this.cues = false; this.pendingCue = null; clearTimeout(this.cueTimer);
+  }
+
+  /**
+   * The orchestrator changed her mode (it decides before she answers): put the body into the mode's base state
+   * right away. From now on the per-turn decisions only pick states that fit this mode (MODE_STATES).
+   */
+  setConversationMode(mode, reason = '') {
+    if (!MODE_STATES[mode]) return;
+    this.convMode = mode;
+    const base = mode === 'normal' ? NORMAL_BASE[this.situation] || MODE_STATES.normal[0] : MODE_STATES[mode][0];
+    const args = { state: base, strength: 0.8 };
+    const result = this.agent.execute('set_state', args);
+    this.emit('update', { mode: 'orchestrator', state: args.state, calls: [{ name: 'set_state', args, result }], text: reason, ms: 0 });
+  }
+
+  /**
+   * The orchestrator's body cue for the next answer (written by the patient model with the answer itself, before
+   * the audio exists): the state is set at once, the gesture and glance wait for the first audible word
+   * (onSpeechStart). While cues arrive, the slower per-turn Claude call is not needed and is skipped.
+   */
+  applyCue(cue) {
+    this.cues = true;
+    const args = { state: this._fit(cue.state), strength: 0.75 };
+    const result = this.agent.execute('set_state', args);
+    this.pendingCue = { gesture: cue.gesture, gaze: cue.gaze, at: performance.now() };
+    // the words may already be playing (a late cue): then move now
+    if (performance.now() - (this.speechAt || -1e9) < 1500) this._playPending(0);
+    this.emit('update', { mode: 'cue', state: args.state, calls: [{ name: 'set_state', args, result }], text: `cue ${cue.gesture || ''} ${cue.gaze || ''}`.trim(), ms: 0 });
+  }
+
+  /** Her first word of an answer is about to be heard in `delayMs`. */
+  onSpeechStart(delayMs = 0) {
+    this.speechAt = performance.now() + delayMs;
+    if (this.pendingCue && performance.now() - this.pendingCue.at < 15000) this._playPending(delayMs);
+  }
+
+  _playPending(delayMs) {
+    const p = this.pendingCue;
+    this.pendingCue = null;
+    if (!p || (!p.gesture && !p.gaze)) return;
+    clearTimeout(this.cueTimer);
+    // a gesture lands a moment after the first sound, like a nod that goes with "yes"
+    this.cueTimer = setTimeout(() => {
+      this.agent.execute('set_affect', { ...(p.gesture ? { gesture: p.gesture } : {}), ...(p.gaze ? { gaze: p.gaze } : {}) });
+    }, Math.max(0, delayMs) + 120);
+  }
+
+  /** A state that fits the orchestrator's mode (the requested one if it does). */
+  _fit(state) {
+    const ok = this.convMode && MODE_STATES[this.convMode];
+    if (!ok || ok.includes(state)) return state;
+    return this.convMode === 'normal' ? NORMAL_BASE[this.situation] || ok[0] : ok[0];
+  }
 
   addStudent(text) {
     text = String(text || '').trim();
@@ -243,6 +300,7 @@ export class LiveDirector {
     this.transcript.push({ who: 'Patient', text });
     if (this.transcript.length > 40) this.transcript.splice(0, this.transcript.length - 40);
     if (!this.lastStudent) return;                 // her opening greeting: nothing to react to yet
+    if (this.cues) return;                         // the orchestrator's cues already moved the body, before the words
     this.observe();
   }
 
@@ -272,7 +330,7 @@ export class LiveDirector {
     if (!this.director.status) await this.director.checkStatus();
 
     const offline = (mode) => {
-      const want = offlineState(lastPatient, student);
+      const want = this._fit(offlineState(lastPatient, student));
       const calls = [];
       if (want !== this.agent.state().conversationState.state) {
         const result = this.agent.execute('set_state', { state: want, strength: 0.7 });
@@ -294,8 +352,9 @@ export class LiveDirector {
       `Patient profile: ${cut(this.profile || s.description || 'not given', 600)}`,
       `Recent transcript:\n${recent}`,
       `Latest exchange:\nTherapist: ${cut(student, 600)}${interrupted ? '\n(The therapist interrupted her previous answer.)' : ''}\nPatient (saying this now): ${cut(lastPatient, 1200)}`,
-      `Her current state: ${s.conversationState.state} (strength ${s.conversationState.strength}), emotion ${s.emotion} at ${s.intensity}.`
-    ].join('\n\n');
+      `Her current state: ${s.conversationState.state} (strength ${s.conversationState.strength}), emotion ${s.emotion} at ${s.intensity}.`,
+      this.convMode ? `Her conversation mode, decided by the orchestrator: ${this.convMode}. Use only these states: ${MODE_STATES[this.convMode].join(', ')}.` : ''
+    ].filter(Boolean).join('\n\n');
 
     const messages = [{ role: 'user', content }];
     const calls = [];
@@ -309,7 +368,8 @@ export class LiveDirector {
       const uses = j.content.filter((b) => b.type === 'tool_use');
       if (!uses.length) break;
       const results = uses.map((u) => {
-        const args = u.name === 'set_affect' ? liveAffect(u.input) : u.input;
+        const args = u.name === 'set_affect' ? liveAffect(u.input)
+          : u.name === 'set_state' ? { ...u.input, state: this._fit(u.input?.state) } : u.input;
         const result = this.agent.execute(u.name, args);
         calls.push({ name: u.name, args, result });
         return { type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(compact(result)), is_error: !result.ok };
@@ -320,6 +380,8 @@ export class LiveDirector {
     this.emit('update', { mode: 'claude', state: this.agent.state().conversationState.state, calls, text, ms: Math.round(performance.now() - t0) });
   }
 }
+
+export { MODE_STATES };
 
 /** Offline stand-in for the live director: keyword cues in her answer (and the therapist's question). */
 export function offlineState(patient, student = '') {

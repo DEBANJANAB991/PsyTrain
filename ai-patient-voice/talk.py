@@ -10,11 +10,13 @@ import os
 import queue
 import signal
 import time
+import uuid
 from datetime import datetime
 from elevenlabs.client import ElevenLabs
-from elevenlabs.conversational_ai.conversation import Conversation
+from elevenlabs.conversational_ai.conversation import Conversation, ConversationInitiationData
 from elevenlabs.conversational_ai.default_audio_interface import DefaultAudioInterface
 
+from patients import PATIENTS
 from settings import APP_DIR, api_key
 
 # Keep the mic muted this long after the last audio chunk is written, to cover
@@ -55,11 +57,15 @@ parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 parser.add_argument(
     "--headphones",
     action="store_true",
-    help="keep the mic open while the patient speaks (lets you interrupt her)",
+    help="keep the mic open while the patient speaks (lets you interrupt the patient)",
 )
+parser.add_argument("--patient", choices=PATIENTS, default="mary", help="which patient to talk to (default: mary)")
 args = parser.parse_args()
+patient = PATIENTS[args.patient]
 client = ElevenLabs(api_key=api_key())
-agent_id = os.environ["AGENT_ID"]
+agent_id = os.environ.get(patient.env_key)
+if not agent_id:
+    raise SystemExit(f"{patient.env_key} is not set in .env; run: python create_agent.py --patient {patient.key}")
 
 transcript = []
 
@@ -78,16 +84,18 @@ conversation = Conversation(
     client,
     agent_id,
     requires_auth=True,
+    # orchestrated patients: a fresh orchestrator session (mode + memory) per talk.py run
+    config=ConversationInitiationData(extra_body={"session": f"talkpy-{uuid.uuid4().hex}"}) if patient.orchestrated else None,
     audio_interface=DefaultAudioInterface() if args.headphones else EchoGatedAudioInterface(),
     callback_agent_response=on_patient,
     callback_user_transcript=on_student,
 )
 
-print("Patient session ready. Speak into your microphone; your speech appears as text.")
+print(f"Session with {patient.name} ready. Speak into your microphone; your speech appears as text.")
 if args.headphones:
     print("Headphone mode: the mic stays open, so you can interrupt the patient. Ctrl+C to stop.")
 else:
-    print("Speaker mode: the mic is muted while the patient talks; wait for her to finish. Ctrl+C to stop.")
+    print("Speaker mode: the mic is muted while the patient talks; wait until they finish. Ctrl+C to stop.")
 conversation.start_session()
 signal.signal(signal.SIGINT, lambda sig, frame: conversation.end_session())
 conversation_id = conversation.wait_for_session_end()
@@ -96,7 +104,7 @@ transcript_dir = APP_DIR / "transcripts"
 transcript_dir.mkdir(exist_ok=True)
 out = transcript_dir / f"{datetime.now():%Y%m%d_%H%M%S}.json"
 out.write_text(
-    json.dumps({"conversation_id": conversation_id, "turns": transcript}, indent=2),
+    json.dumps({"patient": patient.key, "conversation_id": conversation_id, "turns": transcript}, indent=2),
     encoding="utf-8",
 )
 print(f"\nSession ended. Transcript saved to {out}")

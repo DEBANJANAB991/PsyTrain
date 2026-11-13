@@ -89,6 +89,18 @@
     #start:disabled { background: #b9c4c2; cursor: not-allowed; }
     #start:not(:disabled):hover { filter: brightness(1.08); }
     #start:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+    /* session switches (live hints, debug): one session, options on or off */
+    .switches { display: flex; gap: 18px; }
+    .switch { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 6px; font-size: 15px; font-weight: 600; cursor: pointer; user-select: none; }
+    .switch.subtle { font-weight: 500; color: var(--muted); }
+    .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .switch .track { position: relative; width: 44px; height: 26px; border-radius: 13px; background: #c9c4ba; transition: background .15s; flex: none; }
+    .switch .track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff;
+                            box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+    .switch input:checked + .track { background: var(--accent); }
+    .switch input:checked + .track::after { transform: translateX(18px); }
+    .switch input:focus-visible + .track { outline: 3px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 720px) { .bar-inner { flex-wrap: wrap; } #summary { flex-basis: 100%; } }
     .credit { margin: 40px 0 0; font-size: 12px; color: #8a9097; }
     @media (prefers-reduced-motion: reduce) { .patient { transition: none; } }
   </style>
@@ -119,6 +131,12 @@
   <footer class="bar">
     <div class="bar-inner">
       <div id="summary" aria-live="polite"></div>
+      <div class="switches">
+        <label class="switch" title="Shows hints on how to handle it behind the patient when they become distracted or aggressive">
+          <input type="checkbox" id="opt-hints"><span class="track" aria-hidden="true"></span>Live hints</label>
+        <label class="switch subtle" title="For testing: adds the control panel and shows the patient's current mode and why it changed">
+          <input type="checkbox" id="opt-debug"><span class="track" aria-hidden="true"></span>Debug</label>
+      </div>
       <button id="start">Enter consultation room →</button>
     </div>
   </footer>

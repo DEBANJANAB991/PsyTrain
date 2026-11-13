@@ -52,7 +52,16 @@ $('#situations').addEventListener('change', (e) => { state.situation = e.target.
 // ---- start --------------------------------------------------------------------------------------------
 function update() {
   const d = describeSession(state);
-  $('#summary').innerHTML = [`<b>${esc(d.who)}</b>`, ...d.traits.map(esc), `<b>${esc(d.situation)}</b>`].join(' · ');
+  $('#summary').innerHTML = [`<b>${esc(d.name)}</b> (${esc(d.who.toLowerCase())})`, ...d.traits.map(esc), `<b>${esc(d.situation)}</b>`].join(' · ');
 }
-$('#start').onclick = () => { location.href = consultUrl(state); };
+
+// session switches: the same session with live hints and / or the debug tools; remembered in this browser
+const SWITCHES = { hints: $('#opt-hints'), debug: $('#opt-debug') };
+for (const [key, box] of Object.entries(SWITCHES)) {
+  box.checked = localStorage.getItem(`psytrain.option.${key}`) === '1';
+  box.onchange = () => localStorage.setItem(`psytrain.option.${key}`, box.checked ? '1' : '0');
+}
+$('#start').onclick = () => {
+  location.href = consultUrl(state) + Object.entries(SWITCHES).map(([key, box]) => (box.checked ? `&${key}=1` : '')).join('');
+};
 update();

@@ -9,6 +9,8 @@
  * The 3D page is opened as consult.html?patient=<key>&extraversion=high&situation=<key>;
  * traits missing from the URL are average. The URL can be bookmarked or shared.
  */
+// who the voice patient plays per patient + situation; shared with the orchestrator and the voice server
+import PERSONAS from '../ai-patient-voice/prompts/personas.json';
 
 export const PATIENT_OPTIONS = [
   { key: 'young-woman', title: 'Woman', who: 'No visible condition', image: '/landing/young-woman.jpg', enabled: true },
@@ -55,7 +57,7 @@ export const SITUATIONS = [
     label: 'Easily distracted',
     blurb: 'Talks a lot, drifts into anecdotes and loses the thread. Train steering the interview back to your question.',
     enabled: true,
-    profile: 'Mary Keller, 34, event manager. Very sociable, extremely talkative, warm and humorous. Easily distracted: any keyword starts a chain of anecdotes, she comments on the room, glances at her buzzing phone and forgets the question. Once the therapist calmly names her tangents she stays clearly more focused, with only small tangents. Wants to be liked and plays problems down; never hostile. She came because her partner Lena suggested it; the topic is her drinking, which she minimises.',
+    profile: '{{name}}, 34, event manager. Very sociable, extremely talkative, warm and humorous. Easily distracted: any keyword starts a chain of anecdotes, comments on the room, glances at the buzzing phone and forgets the question. Clearly more focused once the therapist calmly names the tangents. Wants to be liked and plays problems down; never hostile. Came because partner Lena suggested it; the topic is drinking, which the patient minimises.',
     body: {
       description: 'easily distracted: looks around the room, restless hands, behaviour drifts a lot',
       ranges: { lookAround: { min: 0.5, max: 1 }, fidget: { min: 0.4, max: 1 } },
@@ -69,13 +71,13 @@ export const SITUATIONS = [
     label: 'Aggressive',
     blurb: 'Irritable and confrontational. Stares at you, sits with arms crossed, frowns and moves restlessly. Train staying calm and de-escalating.',
     enabled: true,
-    profile: 'An irritable, confrontational patient who stares at the therapist, sits with arms crossed and moves restlessly. Show irritation in the body even when the words are mild; calm down only after real empathy.',
+    profile: '{{name}}, 28, shift supervisor, sent by work after shouting at a colleague. Guarded and curt at the start; irritable and confrontational when judged, lectured, rushed or labelled; calms down only after real de-escalation. Arms crossed.',
     body: {
       description: 'confrontational: irritable, stares, arms crossed, restless',
       ranges: { gazeStudent: { min: 0.75, max: 1 }, headMotion: { min: 0.5, max: 1 } },
       variability: 0.25,
-      default_emotion: 'angry',
-      default_intensity: 0.65,
+      default_emotion: 'tense',     // guarded at first; the anger comes with the orchestrator's aggressive mode
+      default_intensity: 0.5,
       arms: 'crossed'
     }
   }
@@ -115,9 +117,13 @@ export function consultUrl(s) {
   return `/consult.html?${q}`;
 }
 
-/** Short parts for summaries: { who, traits: ['more extraverted than usual'], situation: 'easily distracted' }. */
+/**
+ * Short parts for summaries: { name: 'Mary Keller', who: 'Woman', traits: ['more extraverted than usual'],
+ * situation: 'easily distracted' }. `name` is the person the voice patient plays (personas.json).
+ */
 export function describeSession(s) {
   return {
+    name: sessionPersona(s).name || 'The patient',
     who: PATIENT_OPTIONS.find((p) => p.key === s.patient)?.title ?? 'Patient',
     traits: TRAITS.filter((t) => s.traits[t.key] !== 'average')
       .map((t) => `${s.traits[t.key] === 'high' ? 'more' : 'less'} ${t.adjective} than usual`),
@@ -125,11 +131,19 @@ export function describeSession(s) {
   };
 }
 
-/** Who she is, for the live director: the situation's profile plus the Big Five levels that differ from average. */
+/** The person the voice patient plays for this patient + situation (ai-patient-voice/prompts/personas.json). */
+export function sessionPersona(s) {
+  const pat = PERSONAS.patients[s.patient] || Object.values(PERSONAS.patients)[0];
+  const sit = PERSONAS.situations[s.situation] || Object.values(PERSONAS.situations)[0];
+  return sit.personas[pat.gender] || Object.values(sit.personas)[0];
+}
+
+/** Who the patient is, for the live director: the situation's profile plus the Big Five levels that differ from average. */
 export function sessionProfile(s) {
   const x = SITUATIONS.find((y) => y.key === s.situation);
   const traits = describeSession(s).traits;
-  return [x?.profile || x?.body.description || '', traits.length ? `Personality: ${traits.join(', ')}.` : ''].filter(Boolean).join(' ');
+  const profile = (x?.profile || x?.body.description || '').replace(/\{\{name\}\}/g, describeSession(s).name);
+  return [profile, traits.length ? `Personality: ${traits.join(', ')}.` : ''].filter(Boolean).join(' ');
 }
 
 /** Personality definition for Personality.define(): Big Five from step 2 + body language of the situation. */

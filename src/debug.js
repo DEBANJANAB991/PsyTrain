@@ -123,7 +123,7 @@ export function createDebugPanel(root, affect, voice = null, ctl = null) {
 }
 
 /** Live conversation with the ElevenLabs patient agent; the live director's body-language decisions are logged. */
-function addLiveSection(root, voice, { conversation, liveDirector, liveFirst }) {
+function addLiveSection(root, voice, { conversation, liveDirector, liveFirst, talkButton = true }) {
   const box = document.createElement('div');
   box.style.cssText = 'display:flex;flex-direction:column;gap:8px';
   box.innerHTML = `
@@ -136,6 +136,8 @@ function addLiveSection(root, voice, { conversation, liveDirector, liveFirst }) 
   if (liveFirst) root.prepend(box); else root.append(box);
   const q = (s) => box.querySelector(s);
   const btn = q('#lgo'), stat = q('#lstat'), log = q('#llog'), bodyEl = q('#lbody');
+  // with the talk dock on the page (talk-ui.js) its button starts the conversation; this section only logs it
+  if (!talkButton) { btn.hidden = true; q('#lhint').textContent = 'Start the conversation with the Talk button in the dock. Transcript and body-language decisions are logged here.'; }
   const lines = [];
   const add = (s) => { lines.push(s); if (lines.length > 60) lines.shift(); log.textContent = lines.join('\n'); log.scrollTop = log.scrollHeight; };
   const showBody = () => {

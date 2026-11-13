@@ -20,6 +20,7 @@ import { createHash } from 'node:crypto';
 import Anthropic, { betaRefusalFallbackMiddleware, BetaFallbackState } from '@anthropic-ai/sdk';
 import { AnthropicBedrock, AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
 import { loadEnv } from 'vite';
+import { clientIp } from './client-ip.js';
 import { AGENT_TOOLS, DIRECTOR_SYSTEM, LIVE_TOOLS, LIVE_DIRECTOR_SYSTEM } from '../shared/agent-tools.js';
 
 // a live conversation calls the director once per patient turn, so allow a little more than the setup director needs
@@ -64,7 +65,7 @@ function validMessages(messages) {
 }
 
 /** Work out which provider to use and whether it has what it needs. Nothing secret leaves this function except into the SDK client. */
-function resolveProvider(env) {
+export function resolveProvider(env) {
   const anthropicKey = pick(env, ['ANTHROPIC_API_KEY'], /^anthropic_?(api)?_?key$|^anthropic_?api$/i);
   const aws = {
     accessKey: pick(env, ['AWS_ACCESS_KEY_ID']),
@@ -117,7 +118,26 @@ function fallbackStateFor(messages) {
  * Model ids of the older bedrock-runtime endpoint (InvokeModel) carry an inference-profile prefix
  * (global., us., eu., jp., apac., au.) or a version suffix (...-v1:0); bedrock-mantle ids are plain anthropic.claude-*.
  */
-const isRuntimeModel = (model) => /^(global|us|eu|jp|apac|au)\./.test(model) || /:\d+$|-v\d+$/.test(model) || model.startsWith('arn:');
+export const isRuntimeModel = (model) => /^(global|us|eu|jp|apac|au)\./.test(model) || /:\d+$|-v\d+$/.test(model) || model.startsWith('arn:');
+
+/**
+ * An SDK client for `model` with the configured credentials (used by the orchestrator, server/orchestrator.js):
+ * the Claude API, Bedrock's bedrock-runtime endpoint (prefixed / versioned ids) or bedrock-mantle (plain ids).
+ * All three share the Messages API, including messages.stream().
+ */
+export function llmClient(cfg, model) {
+  if (cfg.provider === 'anthropic') return new Anthropic({ apiKey: cfg.anthropicKey, ...(cfg.base ? { baseURL: cfg.base } : {}) });
+  const { aws } = cfg;
+  if (isRuntimeModel(model)) {
+    const auth = aws.bearer ? { apiKey: aws.bearer }
+      : aws.accessKey && aws.secretKey ? { awsAccessKey: aws.accessKey, awsSecretKey: aws.secretKey, awsSessionToken: aws.sessionToken || null } : {};
+    return new AnthropicBedrock({ awsRegion: aws.region, ...auth });
+  }
+  const auth = aws.bearer ? { apiKey: aws.bearer }
+    : aws.accessKey && aws.secretKey ? { awsAccessKey: aws.accessKey, awsSecretAccessKey: aws.secretKey, awsSessionToken: aws.sessionToken || null }
+    : { awsProfile: aws.profile };
+  return new AnthropicBedrockMantle({ awsRegion: aws.region, ...auth });
+}
 
 /** Claude on the bedrock-runtime endpoint (InvokeModel), e.g. global.anthropic.claude-sonnet-4-6. */
 async function callBedrockRuntime(cfg, params) {
@@ -202,7 +222,7 @@ export function agentProxy() {
     if (url === '/api/agent/step' && req.method === 'POST') {
       if (cfg.missing) return send(res, 503, { error: `${cfg.missing} is not set (see .env.example)` });
 
-      const ip = req.socket.remoteAddress || '?';
+      const ip = clientIp(req);
       const now = Date.now();
       const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
       if (recent.length >= MAX_PER_MINUTE) return send(res, 429, { error: 'rate limit: too many requests' });

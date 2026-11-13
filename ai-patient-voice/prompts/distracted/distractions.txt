@@ -1,0 +1,26 @@
+# Things that can catch the patient's attention. The orchestrator picks a few at random for each session (one per line,
+# lines starting with # are ignored), so every conversation drifts differently. Keep them harmless and consistent
+# with YOUR LIFE in guardrails.txt. Written to the patient ("your"), like the rest of the patient prompt, so they fit
+# every persona (Mary and Mark).
+the plant in the corner
+the picture on the wall
+a siren or a car outside
+the light coming through the window
+the chair you are sitting on
+the therapist's pen or notebook
+the clock on the wall
+the weather outside
+your phone buzzing: your sister Mia about the wedding flowers
+your phone buzzing: the group chat with old school friends
+your phone buzzing: a client asking about an event
+your phone buzzing: your mother checking in
+Bruno, your beagle, and what he ate this week
+the neighbour who practises the trumpet
+last year's summer festival where the stage power failed
+the chaos behind the scenes at a corporate event
+planning Mia's wedding in spring
+Saturday football with friends
+a cooking show and the pasta you tried to make
+the holiday in Mallorca
+the gym membership you never use
+your mother's Sunday phone calls

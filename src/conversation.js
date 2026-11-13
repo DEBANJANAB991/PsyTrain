@@ -19,8 +19,11 @@ const ECHO_TAIL_SECONDS = 0.6;
  * Events: status (string), student (text), patient (text), correction (text), interruption, ended ({ reason }), error (Error).
  */
 export class LiveConversation {
-  constructor(head) {
+  /** patient / situation: the landing-page choice (keys of PATIENT_OPTIONS / SITUATIONS in cases.js). */
+  constructor(head, { patient = null, situation = null } = {}) {
     this.head = head;
+    this.patient = patient;
+    this.situation = situation;
     this.ws = null;
     this.listeners = {};
     this.player = new StreamPlayer(head);
@@ -40,6 +43,17 @@ export class LiveConversation {
   get active() { return this.state !== 'idle'; }
   get speaking() { return this.player.playing; }
 
+  /** Microphone loudness 0..1 (RMS, scaled so normal speech reaches about 0.5 to 1); 0 when the mic is off. */
+  get micLevel() {
+    const a = this.micAnalyser;
+    if (!a) return 0;
+    const buf = (this._levelBuf ||= new Float32Array(a.fftSize));
+    a.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    return Math.min(1, Math.sqrt(sum / buf.length) * 8);
+  }
+
   async start() {
     if (this.active) return;
     this._status('connecting');
@@ -50,11 +64,18 @@ export class LiveConversation {
       // ask for the microphone first: if it is refused there is no point in opening a session
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
 
-      const r = await fetch('/api/voice/agent-session', { cache: 'no-store' });
+      // the selected patient (avatar) and situation pick the voice, the opener and the person the orchestrator plays
+      const q = new URLSearchParams();
+      if (this.patient) q.set('patient', this.patient);
+      if (this.situation) q.set('situation', this.situation);
+      const r = await fetch(`/api/voice/agent-session?${q}`, { cache: 'no-store' });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `could not start the conversation (${r.status})`);
+      this.who = j.name || null;
 
       this.dropUpTo = -1;
+      this.session = 'web-' + crypto.randomUUID();
+      this.emit('session', this.session);
       this.responseId = null;
       this.responseMs = 0;
       const ws = new WebSocket(j.signed_url);
@@ -66,7 +87,12 @@ export class LiveConversation {
       ws.onerror = () => this.emit('error', new Error('connection error'));
       ws.onclose = (e) => this._end(e.reason || (e.code === 1000 ? 'conversation ended' : `connection closed (${e.code})`));
       ws.onmessage = (e) => { try { this._onMessage(JSON.parse(e.data)); } catch (err) { console.warn('[conversation] bad message', err); } };
-      ws.send(JSON.stringify({ type: 'conversation_initiation_client_data' }));
+      // the orchestrator (server/orchestrator.js) keeps mode + memory per session; this id links its calls to us
+      ws.send(JSON.stringify({
+        type: 'conversation_initiation_client_data',
+        custom_llm_extra_body: { session: this.session, patient: j.patient, situation: j.situation },
+        ...(j.overrides ? { conversation_config_override: j.overrides } : {})
+      }));
     } catch (e) {
       this._end(null);
       throw e;
@@ -82,8 +108,8 @@ export class LiveConversation {
   _end(reason) {
     if (this.state === 'idle') return;
     this.player.stop();
-    this.micNode?.disconnect(); this.micSource?.disconnect(); this.micSink?.disconnect();
-    this.micNode = this.micSource = this.micSink = null;
+    this.micNode?.disconnect(); this.micSource?.disconnect(); this.micSink?.disconnect(); this.micAnalyser?.disconnect();
+    this.micNode = this.micSource = this.micSink = this.micAnalyser = null;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     if (this.ws) { this.ws.onclose = this.ws.onmessage = this.ws.onerror = null; this.ws = null; }
@@ -111,6 +137,10 @@ export class LiveConversation {
     this.micSink = ctx.createGain();
     this.micSink.gain.value = 0;
     this.micSource.connect(this.micNode).connect(this.micSink).connect(ctx.destination);
+    // loudness for the talk dock's mic meter (talk-ui.js)
+    this.micAnalyser = ctx.createAnalyser();
+    this.micAnalyser.fftSize = 1024;
+    this.micSource.connect(this.micAnalyser);
   }
 
   _onMessage(m) {
@@ -133,12 +163,15 @@ export class LiveConversation {
       case 'audio': {
         const ev = m.audio_event || {};
         if (!ev.audio_base_64 || ev.event_id <= this.dropUpTo) break;
-        if (ev.event_id !== this.responseId) { this.responseId = ev.event_id; this.responseMs = 0; }
+        const fresh = ev.event_id !== this.responseId;
+        if (fresh) { this.responseId = ev.event_id; this.responseMs = 0; }
         const pcm = new Int16Array(base64ToBytes(ev.audio_base_64).buffer);
         const ms = (pcm.length / this.outRate) * 1000;
         const timing = alignmentWords(ev.alignment, ms, this.responseMs);
         this.responseMs += ms;
-        this.player.push(pcm, this.outRate, timing);
+        const startAt = this.player.push(pcm, this.outRate, timing);
+        // first audio of a new answer: tell listeners when it will actually be heard (gestures start with the words)
+        if (fresh && startAt != null) this.emit('speechstart', { delayMs: Math.max(0, (startAt - this.head.audioCtx.currentTime) * 1000) });
         break;
       }
       case 'agent_response':
@@ -199,6 +232,7 @@ class StreamPlayer {
     src.start(startAt);
     this.sources.add(src);
     this.next = startAt + buf.duration;
+    return startAt;
   }
 
   stop() {

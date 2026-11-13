@@ -15,8 +15,10 @@
  * Because the dev server can be exposed through a public tunnel, requests are capped
  * (length + rate) so a stranger with the link cannot burn through your credits.
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { loadEnv } from 'vite';
+import { clientIp } from './client-ip.js';
 
 const MAX_CHARS = 500;
 const MAX_PER_MINUTE = 20;
@@ -38,6 +40,27 @@ function readBuffer(req, max) {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+/**
+ * Voice + opener for a landing-page choice, from ai-patient-voice/prompts/personas.json. Unknown keys fall back to
+ * the first patient / situation (as in the orchestrator), so the voice and the words always belong together.
+ */
+function sessionOverrides(root, patient, situation) {
+  try {
+    const P = JSON.parse(fs.readFileSync(path.join(root, 'ai-patient-voice', 'prompts', 'personas.json'), 'utf8'));
+    const pk = P.patients[patient] ? patient : Object.keys(P.patients)[0];
+    const sk = P.situations[situation] ? situation : Object.keys(P.situations)[0];
+    const pat = P.patients[pk], sit = P.situations[sk];
+    const person = sit.personas[pat.gender] || Object.values(sit.personas)[0];
+    return {
+      patient: pk, situation: sk, name: person.name,
+      overrides: { tts: { voice_id: pat.voice_id }, agent: { first_message: sit.first_message || 'Hello' } }
+    };
+  } catch (e) {
+    console.warn('[voice] personas.json not readable, using the agent defaults:', e.message);
+    return {};
+  }
 }
 
 function send(res, status, obj) {
@@ -84,7 +107,7 @@ export function elevenLabsProxy() {
       const id = agentId();
       if (!id) return send(res, 503, { error: 'no ElevenLabs patient agent: run ai-patient-voice/create_agent.py or set ELEVENLABS_AGENT_ID in .env' });
       if (!/^[A-Za-z0-9_-]{8,80}$/.test(id)) return send(res, 500, { error: 'the agent id in .env does not look valid' });
-      const ip = req.socket.remoteAddress || '?';
+      const ip = clientIp(req);
       const now = Date.now();
       const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
       if (recent.length >= MAX_PER_MINUTE) return send(res, 429, { error: 'rate limit: too many requests' });
@@ -99,7 +122,10 @@ export function elevenLabsProxy() {
         }
         const { signed_url } = JSON.parse(raw);
         if (!signed_url) return send(res, 502, { error: 'ElevenLabs returned no signed URL' });
-        return send(res, 200, { signed_url });
+        // the selected patient's voice and the situation's opener (ai-patient-voice/prompts/personas.json); the
+        // orchestrator gets the same keys and writes the matching person's words
+        const q = new URL(req.url, 'http://x').searchParams;
+        return send(res, 200, { signed_url, ...sessionOverrides(root, q.get('patient'), q.get('situation')) });
       } catch (e) {
         return send(res, 502, { error: 'could not reach ElevenLabs: ' + e.message });
       }
@@ -108,7 +134,7 @@ export function elevenLabsProxy() {
     if (url === '/api/voice/speak' && req.method === 'POST') {
       if (!key) return send(res, 503, { error: 'ELEVENLABS_API_KEY is not set (see .env.example)' });
 
-      const ip = req.socket.remoteAddress || '?';
+      const ip = clientIp(req);
       const now = Date.now();
       const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
       if (recent.length >= MAX_PER_MINUTE) return send(res, 429, { error: 'rate limit: too many requests' });
@@ -146,7 +172,7 @@ export function elevenLabsProxy() {
 
     if (url === '/api/voice/transcribe' && req.method === 'POST') {
       if (!key) return send(res, 503, { error: 'ELEVENLABS_API_KEY is not set (see .env.example)' });
-      const ip = req.socket.remoteAddress || '?';
+      const ip = clientIp(req);
       const now = Date.now();
       const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
       if (recent.length >= MAX_PER_MINUTE) return send(res, 429, { error: 'rate limit: too many requests' });

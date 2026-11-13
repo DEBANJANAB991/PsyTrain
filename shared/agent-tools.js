@@ -46,9 +46,28 @@ export const CONVERSATION_STATES = {
   hesitant:     { what: 'unsure after a brusque or reproachful remark: short, careful answers', emotion: 'withdrawn', intensity: 0.5, gaze: 'down',
                   behavior: { gazeStudent: 0.35, fidget: 0.45, headMotion: 0.25, shift: 0.15, lookAround: 0.2 } },
   at_ease:      { what: 'relaxed and open after empathy, validation or a shared laugh', emotion: 'relieved', intensity: 0.5, gaze: 'student',
-                  behavior: { gazeStudent: 0.8, fidget: 0.15, lookAround: 0.15, footTap: 0, legBounce: 0 } }
+                  behavior: { gazeStudent: 0.8, fidget: 0.15, lookAround: 0.15, footTap: 0, legBounce: 0 } },
+  guarded:      { what: 'curt and mistrustful but answering: testing the therapist, closed, little movement', emotion: 'tense', intensity: 0.45, gaze: 'student',
+                  behavior: { gazeStudent: 0.6, fidget: 0.2, headMotion: 0.3, shift: 0.2, lookAround: 0.2 } },
+  hostile:      { what: 'irritated and confrontational: stares, sharp, restless, pushes back', emotion: 'angry', intensity: 0.65, gaze: 'student',
+                  behavior: { gazeStudent: 0.9, headMotion: 0.8, shift: 0.6, fidget: 0.35, footTap: 0.4, breath: 1.4, lookAround: 0.1 } }
 };
 export const STATE_NAMES = Object.keys(CONVERSATION_STATES);
+
+/** Body states that fit each orchestrator mode; the first is where a mode change puts the body. */
+export const MODE_STATES = {
+  normal: ['engaged', 'uneasy', 'hesitant', 'at_ease', 'guarded'],
+  distracted: ['distracted', 'storytelling'],
+  aggressive: ['hostile', 'guarded']
+};
+/** Where "normal" starts in a situation (default: the first normal state). */
+export const NORMAL_BASE = { aggressive: 'guarded' };
+/** Body states allowed for an answer in `mode` within `situation`, the mode's base state first. */
+export function modeStates(mode, situation) {
+  const list = MODE_STATES[mode] || MODE_STATES.normal;
+  const base = mode === 'normal' ? NORMAL_BASE[situation] || list[0] : list[0];
+  return [base, ...list.filter((x) => x !== base)];
+}
 
 const num = (description, min, max) => ({ type: 'number', description, minimum: min, maximum: max });
 const behaviorProps = () => Object.fromEntries(BEHAVIOR_KEYS.map((k) => [k, num(`${BEHAVIOR_META[k].what} (${BEHAVIOR_META[k].min} to ${BEHAVIOR_META[k].max})`, BEHAVIOR_META[k].min, BEHAVIOR_META[k].max)]));
@@ -198,7 +217,8 @@ export const LIVE_DIRECTOR_SYSTEM = `You direct the body language of a virtual p
 Each message gives you the patient profile, the recent transcript, the latest exchange (what the therapist said and the answer she is giving right now) and her current conversation state and emotion.
 
 How to decide:
-- Choose the conversation state that fits her CURRENT answer and apply it with set_state (strength 0.4 to 0.9): engaged, distracted, storytelling, uneasy, hesitant or at_ease.
+- Choose the conversation state that fits her CURRENT answer and apply it with set_state (strength 0.4 to 0.9): engaged, distracted, storytelling, uneasy, hesitant, at_ease, guarded or hostile. If the message names her conversation mode and the allowed states, use only those.
+- An irritable patient: guarded while curt but answering, hostile when sharp, sarcastic or pushing back; after real de-escalation back to guarded, and at_ease only after clear trust.
 - Distraction: she drifts into a tangent, mentions sounds or things in the room, her phone, food, football or parties, or loses the thread ("where was I"). Use distracted, or storytelling for an animated, happy anecdote.
 - Back to normal: when she answers to the point again (a focused, concrete answer, often after the therapist names the tangent, interrupts her politely or repeats the question), switch to engaged. Never leave her in a state that no longer fits.
 - Attention comes first: a plain, concrete answer to the question is engaged, even when the topic is her drinking.

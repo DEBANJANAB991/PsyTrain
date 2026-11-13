@@ -80,12 +80,24 @@ export function createScene(container) {
     scene.add(new THREE.HemisphereLight(0xf2f0ec, 0x7a6550, L.hemisphere));
   }
 
-  // Desktop camera: orbit around the patient's head for debugging
+  // Desktop camera: the student stays seated and drags to look around (turn right for the SKID notes,
+  // see skid.js). ?orbit=1 orbits around the patient's head instead, for debugging.
   const desktopPos = new THREE.Vector3(0, ROOM.eyeHeight, 0);
   const controls = new OrbitControls(camera, renderer.domElement);
-  const target = new THREE.Vector3(0, 1.15, patientZ);
-  controls.target.copy(target);
+  const head = new THREE.Vector3(0, 1.15, patientZ);
   controls.enableDamping = true;
+  const orbit = new URLSearchParams(location.search).has('orbit');
+  if (orbit) {
+    controls.target.copy(head);
+  } else {
+    // orbiting a point 1 cm in front of the eyes turns the view in place
+    controls.target.copy(head).sub(desktopPos).setLength(0.01).add(desktopPos);
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    controls.rotateSpeed = -0.5;   // drag the room, like a 360° photo viewer; half the screen height = 90°
+    controls.minPolarAngle = Math.PI / 2 - 1.0;
+    controls.maxPolarAngle = Math.PI / 2 + 1.0;
+  }
   camera.position.copy(desktopPos);
   controls.update();
 
@@ -102,9 +114,35 @@ export function createScene(container) {
     controls.update();
   });
 
+  // Seated view: turn the head to `yaw` (radians, + = right) over `ms`, keeping the current pitch. Used to frame the
+  // patient and the SKID notes side by side. A drag by the student cancels a running turn.
+  let turning = 0;
+  controls.addEventListener('start', () => cancelAnimationFrame(turning));
+  const lookYaw = (yaw) => {
+    const dir = controls.target.clone().sub(camera.position);
+    const pitch = Math.atan2(dir.y, Math.hypot(dir.x, dir.z));
+    controls.target.copy(camera.position).add(new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(0.01));
+    controls.update();
+  };
+  const currentYaw = () => { const d = controls.target.clone().sub(camera.position); return Math.atan2(d.x, -d.z); };
+  function turnTo(yaw, ms = 600) {
+    if (orbit || renderer.xr.isPresenting) return;
+    cancelAnimationFrame(turning);
+    const from = currentYaw(), t0 = performance.now();
+    if (ms <= 0) return lookYaw(yaw);
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms), e = k * k * (3 - 2 * k);   // smoothstep
+      lookYaw(from + (yaw - from) * e);
+      if (k < 1) turning = requestAnimationFrame(step);
+    };
+    turning = requestAnimationFrame(step);
+  }
+
+  // three.js' VR button, only where immersive VR is possible (no "VR NOT SUPPORTED" on a desktop browser).
+  // Not added to the page here: the talk dock (talk-ui.js) places it next to its own buttons.
   const vrButton = VRButton.createButton(renderer);
-  vrButton.style.zIndex = '10';
-  document.body.appendChild(vrButton);
+  vrButton.classList.add('vr-button');
+  const vrSupported = navigator.xr?.isSessionSupported?.('immersive-vr').catch(() => false) ?? Promise.resolve(false);
 
   window.addEventListener('resize', () => {
     camera.aspect = container.clientWidth / container.clientHeight;
@@ -112,5 +150,5 @@ export function createScene(container) {
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
 
-  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient, roomReady };
+  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient, roomReady, turnTo, vr: { button: vrButton, supported: vrSupported } };
 }

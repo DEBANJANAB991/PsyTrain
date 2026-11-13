@@ -17,13 +17,18 @@ The root URL opens the **landing page**, one page in three steps:
    Only *extraversion: higher than usual* is modelled so far; the other traits are fixed at average.
 3. **Difficult situation to train**: *easily distracted* or *aggressive*.
 
+**Run with hints** opens the same room with `&hints=1`. When the patient becomes distracted (orchestrator mode)
+or aggressive (angry emotion), a light bulb pops up behind her. Next to it are all three strategies for that behaviour
+from `ai-patient-voice/hints.json`, side by side, and the student picks one. This also works in VR. The logic is in `src/hints.js`: `window.patient.hints.trigger` is the current trigger and `.level` the strategy level.
 **Enter consultation room** opens the 3D room, e.g.
 `/consult.html?patient=young-woman&extraversion=high&situation=distracted` (traits missing from the URL are average).
 Everything is defined in `src/cases.js`: enable more trait levels in `AVAILABLE_LEVELS`, add situations to `SITUATIONS`.
 The traits plus the situation's body language (behaviour ranges, starting emotion, arm posture) are registered as a
 personality with `Personality.define()` when the room loads. They change face, posture, gaze and body language, not the voice.
 
-Desktop: drag to orbit around the patient. The panel on the right has 4 mood buttons, an intensity
+Desktop: drag to look around from the student's seat (`?orbit=1` orbits around the patient instead).
+Turn about 25° right to see the patient and the **SKID notes** form side by side (`src/skid.js`). It autosaves per case in `localStorage` and is not
+shown inside VR. The `?debug=1` panel has 4 mood buttons, an intensity
 slider, 3 gaze buttons and a nod. All of them call `affect.setAffect(...)`.
 
 ## Vision Pro (headset test)
@@ -176,13 +181,47 @@ safety-refusal fallback); the tools run in the browser and their results go back
 credentials a small offline rule set understands simple phrases. The endpoint is capped (12 requests per minute, size limits), as with the voice endpoint.
 
 **Live conversation**: the consultation page shows only the room and a **Talk to the patient** button (the full
-control panel is at `&debug=1`). Click it; she says hello, then it's your turn. Two agents share the work:
+control panel is at `&debug=1`). Click it; she says hello, then it's your turn. The parts:
 
-- The **ElevenLabs patient agent** from `ai-patient-voice/` (Mary Keller: prompt, voice, speech recognition,
-  turn-taking) decides what she says and speaks it. `src/conversation.js` joins it over its WebSocket with a one-time
-  signed URL from `/api/voice/agent-session` (the key stays on the server), sends 16 kHz microphone audio
+- **ElevenLabs** (the `AGENT_ID` agent from `ai-patient-voice/`) is the patient's ears and voice: speech recognition, turn-taking,
+  text to speech. `src/conversation.js` joins it over its WebSocket with a one-time signed URL from
+  `/api/voice/agent-session` (the key stays on the server), sends 16 kHz microphone audio
   (`public/worklets/mic-worklet.js`) and plays her audio on the avatar with our lip-sync, using ElevenLabs'
-  per-character timings.
+  per-character timings. The agent's LLM is set to **custom LLM**: every answer comes from the orchestrator.
+- **Who the patient is** follows the landing page (`ai-patient-voice/prompts/personas.json`): the avatar picks the
+  gender and the ElevenLabs voice, the situation picks the person and the prompts. Woman: Mary Keller (distracted) or
+  Lisa Fischer (aggressive), voice Jessica. Man: Mark Keller or Ryan Fischer, voice Liam (Will for the man in a
+  wheelchair, whose prompt also mentions the wheelchair). `/api/voice/agent-session?patient=&situation=` returns the
+  voice and the opener, which the page sends as ElevenLabs overrides, and the orchestrator gets the same keys.
+- The **orchestrator** (`server/orchestrator.js`, OpenAI-compatible `/api/llm/v1/chat/completions`, called by
+  ElevenLabs with a bearer token) is the brain. Before each answer it decides the **mode**: `normal`, where every
+  conversation starts, or the situation's behaviour mode:
+  - **distracted**: tangents, comments on the room, the phone, forgets the question. Triggered by open questions,
+    keywords from the patient's life or long focus; back to normal when the student intervenes (name + redirect,
+    repeating the question, naming the tangents).
+  - **aggressive**: irritated and confrontational. Normal is guarded and curt. Triggered when the student judges,
+    lectures, labels ("anger issues"), argues, rushes or says "calm down"; back to normal after de-escalation
+    (naming the feeling without judging, giving control, asking permission, a calm limit).
+
+  A fast model (`ORCHESTRATOR_MODEL`, default Claude Haiku 4.5 on Bedrock) decides with
+  `prompts/<situation>/orchestrator.txt`. It may wait for a second intervention; after the second one the patient
+  always comes back, and without one the patient never does. Questions about suicide, self-harm or harming others
+  (`risk` in the decision) are answered directly with the normal prompt in any mode, and the body shows normal for
+  that answer; the mode itself continues. The triggers are tuned for SKID-style interviews: a question's topic
+  (appetite, sleep, alcohol) is not a trigger for distraction, and calm, explained or normalising questions are not
+  a reason for aggression. **"Bingo"** in the student's words always flips the
+  mode (for testing). The answer is written by `PATIENT_MODEL` (default: `BEDROCK_MODEL`) from
+  `prompts/<situation>/guardrails.txt` + `normal.txt` or the behaviour file + the memory, and streamed to ElevenLabs.
+  While the mode is being decided, the answer in the current mode is already being generated and is used if the mode
+  stays the same.
+- The **memory saver** (in the orchestrator, `prompts/<situation>/memory.txt`) updates a short summary after each
+  answer (topics, facts revealed and how precisely, stories told or what irritated / calmed the patient, mode
+  history). Both mode prompts get it, so a switch keeps the context. The prompts are read on every answer: edit
+  them and keep talking.
+- The page polls `/api/orchestrator/state?session=<id>` (`src/orchestrator-client.js`). A mode change puts the body
+  into the mode's base state right away, before the patient speaks (`distracted`, `hostile`; for normal `engaged`,
+  or `guarded` in the aggressive situation), and the label above the caption shows the mode and why it changed
+  (hide it with `&nomode=1`).
 - The **live director** (`LiveDirector` in `src/agent.js`, Claude via `/api/agent/step` with `mode: "live"`) gets
   the profile (`profile` of the situation in `src/cases.js`, plus the Big Five levels), the recent transcript and
   the latest exchange after every patient turn and puts her into a
@@ -191,15 +230,24 @@ control panel is at `&debug=1`). Click it; she says hello, then it's your turn. 
   `shared/agent-tools.js`). It can also add a gesture or an event. When she drifts into a tangent her body goes to
   `distracted`; when she answers to the point again it switches back to `engaged`. Turns that arrive while a call
   is running are merged into the next call. Without Bedrock / Anthropic credentials keyword rules pick the state.
+  With the orchestrator it only picks states that fit the mode (`MODE_STATES`): `distracted` / `storytelling` while
+  distracted, `hostile` / `guarded` while aggressive, `engaged` / `uneasy` / `hesitant` / `at_ease` / `guarded`
+  while normal.
 
-Setup: create the agent once with `python ai-patient-voice/create_agent.py` (see that folder's README; it uses the
-ElevenLabs key from this `.env` if its own `.env` has none). It saves `AGENT_ID` in `ai-patient-voice/.env`, which
-the server reads on each request; `ELEVENLABS_AGENT_ID` in this `.env` overrides it. After editing
-`ai-patient-voice/patient_prompt.txt` or `agent_config.py`, run `python ai-patient-voice/update_agent.py`.
+Setup: start the dev server and the tunnel (`cloudflared tunnel --url http://localhost:5173`; ElevenLabs must reach
+the orchestrator), then `python ai-patient-voice/update_agent.py` (or `create_agent.py` the first time). It finds
+the tunnel URL by itself (or uses `ORCHESTRATOR_URL`), creates `ORCHESTRATOR_TOKEN` in `ai-patient-voice/.env`,
+stores it as an ElevenLabs workspace secret and points the agent's custom LLM at the orchestrator. **A quick tunnel
+gets a new address on every restart: run `update_agent.py` again after restarting `cloudflared`.** The agent id is
+saved as `AGENT_ID` in `ai-patient-voice/.env`, which the server reads on each request; `ELEVENLABS_AGENT_ID` in
+this `.env` overrides it. Prompt edits in `ai-patient-voice/prompts/` need no update; voice, turn-taking and other
+`agent_config.py` settings do. `patient_prompt.txt` is Mary's earlier single prompt, kept for reference only.
 
 Echo: as in `talk.py`, the microphone sends silence while she speaks (plus 0.6 s), so her voice from the speakers is
 not taken as your turn; wait until she finishes. Tick "I'm using headphones" under the button to keep the mic open
 and be able to interrupt her (the choice is remembered in the browser).
+
+**Body details.** `src/contacts.js` keeps the hands and fingers on top of the thighs instead of inside them: it measures the thighs once from the avatar's own vertices, then lifts the upper arm just enough each frame (one pass, about 0.1 ms, no per-frame allocations; `?nocontacts=1` turns it off). The body layer (`src/bodylang.js`) eases behaviour changes and uses phase-continuous oscillators, so rhythms no longer speed up over a long session or jump when a mood changes. The patient model also writes a body cue (`prompts/body.txt`) at the start of every answer; the orchestrator removes it before the words are spoken and sends it to the page through server-sent events (`/api/orchestrator/events`), so the body state is set before the audio is heard and the gesture lands on the first word.
 
 **Other agents:** the ElevenLabs conversation agent can register the same tools as client tools (same names and
 parameters) and call `patient.agent.execute` from its handler. The schemas are plain JSON in `AGENT_TOOLS`.
