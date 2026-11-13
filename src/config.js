@@ -23,6 +23,7 @@ export const LIGHTING = {
 //   baseline   per-avatar morph baseline (e.g. eyelid rest position)
 //   seatedPose entries that replace SEATED_POSE for this body's proportions
 //   seatOffset armature offset on the chair (m)
+//   logoCovers optional texture patches that hide printed logos (see conditions.js)
 //   eyeRange   eyeball rotation (rad) at eyeLook* morph value 1, used by gaze.js
 export const AVATARS = {
   // Photo-based Avaturn T2 model: realistic face + hair, ARKit + Oculus visemes.
@@ -55,6 +56,8 @@ export const AVATARS = {
     baseline: { headRotateX: -0.04, eyeBlinkLeft: 0.05, eyeBlinkRight: 0.05 },
     seatedPose: {},
     seatOffset: { x: 0, y: 0, z: -0.09 },
+    // the sample shirt has a big "METAPERSON AVATARS" print; copy plain fabric from just below over it
+    logoCovers: [{ material: 'outfit_top', rect: [0.49, 0.575, 0.73, 0.66], from: [0, 0.09] }],
     eyeRange: { leftOut: 0.600, leftIn: 0.628, rightIn: 0.627, rightOut: 0.598, up: 0.497, down: 0.738 }
   },
   // MakeHuman / MPFB model (CC0). Lighter licence, more "game character" look.

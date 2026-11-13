@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TalkingHead } from './vendor/talkinghead/talkinghead.mjs';
-import { AVATAR } from './config.js';
+import { AVATAR, PATIENT } from './config.js';
+import { applyFacePaint, coverLogos } from './conditions.js';
 
 /**
  * Loads the TalkingHead avatar in `avatarOnly` mode so it lives inside OUR three.js scene
@@ -43,6 +44,8 @@ export async function createPatient({ scene, camera, anchor, onProgress }) {
     }
   });
   head.armature.position.set(AVATAR.seatOffset.x, AVATAR.seatOffset.y, AVATAR.seatOffset.z);
+  if (AVATAR.logoCovers) coverLogos(head, AVATAR.logoCovers);
+  if (PATIENT.facePaint) applyFacePaint(head, PATIENT.facePaint);
   return head;
 }
 

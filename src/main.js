@@ -10,7 +10,7 @@ import * as cfg from './config.js';
 
 const status = document.getElementById('status');
 const app = document.getElementById('app');
-const { renderer, scene, camera, patientAnchor, controls } = createScene(app);
+const { renderer, scene, camera, patientAnchor, controls, fitToPatient } = createScene(app);
 
 let head = null, affect = null, body = null, gaze = null, voice = null;
 
@@ -33,6 +33,7 @@ let head = null, affect = null, body = null, gaze = null, voice = null;
     createDebugPanel(document.getElementById('debug'), affect, voice);
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
     affect.snapToPose();
+    fitToPatient(head);   // wheelchair footrests under her feet (no-op for the normal chair)
     status.textContent = 'Ready';
     setTimeout(() => (status.style.display = 'none'), 1500);
 

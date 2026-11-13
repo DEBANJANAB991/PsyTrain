@@ -1,4 +1,4 @@
-import { EMOTIONS, GAZES, GESTURES, BEHAVIOR } from './config.js';
+import { EMOTIONS, GAZES, GESTURES, BEHAVIOR, PATIENTS, PATIENT_KEY } from './config.js';
 
 const SLIDERS = [
   ['fidget', 'Fidgeting (hands)', 0, 1, 0.05],
@@ -16,6 +16,10 @@ const SLIDERS = [
 export function createDebugPanel(root, affect, voice = null) {
   root.hidden = false;
   root.innerHTML = `
+    <h3>Patient</h3>
+    <select id="patient" style="background:#22262c;color:inherit;border:1px solid #3a3f47;border-radius:6px;padding:5px">
+      ${Object.entries(PATIENTS).map(([k, p]) => `<option value="${k}"${k === PATIENT_KEY ? ' selected' : ''}>${p.label}</option>`).join('')}
+    </select>
     <h3>Voice <span id="vstat" style="float:right;text-transform:none;letter-spacing:0;font-size:11px;opacity:.8"></span></h3>
     <textarea id="vtext" rows="3" style="width:100%;box-sizing:border-box;border-radius:6px;border:1px solid #3a3f47;background:#22262c;color:inherit;padding:6px;font:inherit;font-size:13px">Hello doctor. I have had this pain in my chest for about three days now, and it gets worse when I climb the stairs.</textarea>
     <div class="grid"><button id="vsay">Speak text</button><button id="vstop">Stop</button></div>
@@ -35,6 +39,13 @@ export function createDebugPanel(root, affect, voice = null) {
     <h3>Body language <button id="reset" style="float:right;padding:2px 8px;font-size:11px">reset</button></h3>
     <div id="sl" style="display:flex;flex-direction:column;gap:6px"></div>`;
   const q = (s) => root.querySelector(s);
+  // a different patient = a different model / room setup: reload with ?patient=<key>
+  q('#patient').onchange = (e) => {
+    const url = new URL(location.href);
+    url.searchParams.delete('avatar');
+    url.searchParams.set('patient', e.target.value);
+    location.href = url.toString();
+  };
   const mk = (parent, text, attrs, onclick) => {
     const b = document.createElement('button');
     b.textContent = text; Object.assign(b.dataset, attrs); b.onclick = onclick; parent.appendChild(b); return b;

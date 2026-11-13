@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ROOM, LIGHTING } from './config.js';
+import { ROOM, LIGHTING, PATIENT } from './config.js';
 import { buildRoom } from './room.js';
 
 /**
@@ -43,7 +43,7 @@ export function createScene(container) {
   patientAnchor.position.set(0, 0, patientZ);
   scene.add(patientAnchor);
 
-  const { window: win } = buildRoom(scene, renderer, patientZ);
+  const { window: win, fitToPatient } = buildRoom(scene, renderer, patientZ, { seat: PATIENT.seat });
 
   // Lights. Key = daylight through the window on the right wall, front-right of the patient's face
   // (the only shadow caster). Ceiling panel = warm top light. Rim from behind separates hair from the
@@ -98,5 +98,5 @@ export function createScene(container) {
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
 
-  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ };
+  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient };
 }

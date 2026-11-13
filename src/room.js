@@ -13,7 +13,7 @@ import { ROOM } from './config.js';
  *
  * World layout (see scene.js): student at the origin looking down -z, patient at z = patientZ.
  */
-export function buildRoom(scene, renderer, patientZ) {
+export function buildRoom(scene, renderer, patientZ, { seat = 'chair' } = {}) {
   const { width: W, depth: D, height: H, seatHeight } = ROOM;
   const zFront = 1, zBack = 1 - D, zc = (zFront + zBack) / 2;
   const xL = -W / 2, xR = W / 2;
@@ -97,10 +97,12 @@ export function buildRoom(scene, renderer, patientZ) {
   const rug = add(plane(2.2, 1.6, std({ map: rugTex, roughness: 1 })));
   rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.003, patientZ + 0.55);
 
-  // ---- patient chair (upholstered, armless so the hands are free) ---------------------------------
+  // ---- patient seat: wheelchair or upholstered chair (armless so the hands are free) ---------------
   const chair = new THREE.Group();
   chair.position.set(0, 0, patientZ);
   room.add(chair);
+  const wheelchair = seat === 'wheelchair' ? buildWheelchair(chair, add, M, seatHeight) : null;
+  if (!wheelchair) {
   const cushion = add(box(0.52, 0.09, 0.5, M.fabric, 0.03), { cast: true, parent: chair });
   cushion.position.set(0, seatHeight - 0.045, 0);
   const seatFrame = add(box(0.5, 0.04, 0.47, M.walnut, 0.01), { cast: true, parent: chair });
@@ -118,6 +120,7 @@ export function buildRoom(scene, renderer, patientZ) {
   for (const x of [-0.266, 0.266]) {
     const post = add(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.017, 0.66, 10), M.walnut), { cast: true, parent: chair });
     post.position.set(x, seatHeight + 0.22, -0.258); post.rotation.x = -0.12;
+  }
   }
 
   // ---- side table with tissues and a glass of water (patient's left) ------------------------------
@@ -266,7 +269,131 @@ export function buildRoom(scene, renderer, patientZ) {
     room.add(s);
   }
 
-  return { room, window: win, chair };
+  // fitToPatient(head): wheelchair footrests move under the patient's feet once she is loaded
+  return { room, window: win, chair, fitToPatient: (head) => wheelchair?.fitToPatient(head) };
+}
+
+// =================================================================================================
+// Manual wheelchair (rigid frame, 24" rear wheels, front casters, footrests). Local space of the
+// patient anchor: patient faces +z, seat centre at x = z = 0, seat surface at `seatHeight`.
+// =================================================================================================
+function buildWheelchair(parent, add, M, seatHeight) {
+  const wc = new THREE.Group();
+  wc.name = 'wheelchair';
+  parent.add(wc);
+  const frame = new THREE.MeshStandardMaterial({ color: 0x1f2226, metalness: 0.6, roughness: 0.4 });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
+  const upholstery = new THREE.MeshPhysicalMaterial({ color: 0x24272c, roughness: 0.9, sheen: 0.4, sheenRoughness: 0.8, sheenColor: 0x555a62 });
+  const up = new THREE.Vector3(0, 1, 0);
+  const tube = (a, b, r = 0.0125, material = frame, p = wc) => {
+    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A);
+    const m = add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 12), material), { cast: true, parent: p });
+    m.position.copy(A).addScaledVector(d, 0.5);
+    m.quaternion.setFromUnitVectors(up, d.normalize());
+    return m;
+  };
+  const rail = 0.235, yRail = seatHeight - 0.075;
+
+  // seat cushion + backrest sling
+  const cushion = add(new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.065, 0.44, 3, 0.02), upholstery), { cast: true, parent: wc });
+  cushion.position.set(0, seatHeight - 0.032, 0.0);
+  const back = add(new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.38, 0.025, 3, 0.01), upholstery), { cast: true, parent: wc });
+  back.position.set(0, seatHeight + 0.24, -0.255); back.rotation.x = -0.08;
+
+  for (const s of [-1, 1]) {
+    const x = s * rail;
+    tube([x, yRail, -0.24], [x, yRail, 0.24]);                         // seat rail
+    tube([x, yRail, 0.24], [x, 0.17, 0.33]);                           // front down-tube
+    tube([x, 0.17, -0.25], [x, seatHeight + 0.47, -0.285]);            // backrest post
+    tube([x, seatHeight + 0.47, -0.285], [x, seatHeight + 0.49, -0.37], 0.0125); // push handle
+    tube([x, seatHeight + 0.49, -0.335], [x, seatHeight + 0.495, -0.385], 0.017, rubber); // grip
+    tube([x, 0.17, -0.25], [x, 0.17, 0.33]);                           // lower rail
+    tube([x, 0.17, 0.30], [x, 0.135, 0.30], 0.016);                    // caster housing
+    // clothing guard above the wheel
+    const guard = add(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.09, 0.30), frame), { parent: wc });
+    guard.position.set(s * (rail + 0.015), seatHeight + 0.005, -0.06);
+
+    // rear wheel: tyre, rim, hand rim, hub, spokes (slight camber, top leans in)
+    const wheel = new THREE.Group();
+    wheel.position.set(s * (rail + 0.075), 0.305, -0.13);
+    wheel.rotation.z = s * 0.05;
+    wc.add(wheel);
+    const R = 0.29;
+    const tyre = add(new THREE.Mesh(new THREE.TorusGeometry(R, 0.016, 10, 64), rubber), { cast: true, parent: wheel });
+    tyre.rotation.y = Math.PI / 2;
+    const rim = add(new THREE.Mesh(new THREE.TorusGeometry(R - 0.018, 0.007, 8, 64), M.brushed), { parent: wheel });
+    rim.rotation.y = Math.PI / 2;
+    const hand = add(new THREE.Mesh(new THREE.TorusGeometry(R - 0.03, 0.0085, 8, 64), M.brushed), { cast: true, parent: wheel });
+    hand.rotation.y = Math.PI / 2; hand.position.x = s * 0.035;
+    const hub = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 16), M.brushed), { parent: wheel });
+    hub.rotation.z = Math.PI / 2;
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2, xo = (i % 2 ? 1 : -1) * 0.02;
+      tube([xo, 0, 0], [0, Math.cos(a) * (R - 0.02), Math.sin(a) * (R - 0.02)], 0.0016, M.brushed, wheel);
+    }
+    for (let i = 0; i < 6; i++) {                                       // hand-rim standoffs
+      const a = (i / 6) * Math.PI * 2;
+      tube([0, Math.cos(a) * (R - 0.03), Math.sin(a) * (R - 0.03)], [s * 0.035, Math.cos(a) * (R - 0.03), Math.sin(a) * (R - 0.03)], 0.004, M.brushed, wheel);
+    }
+    tube([0, 0, 0], [-s * 0.075, 0.17 - 0.305, -0.12 + 0.13], 0.012, frame, wheel); // axle mount to lower rail
+
+    // front caster: fork + small wheel
+    const caster = new THREE.Group();
+    caster.position.set(x, 0.065, 0.335);
+    wc.add(caster);
+    const cw = add(new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.025, 24), rubber), { cast: true, parent: caster });
+    cw.rotation.z = Math.PI / 2;
+    for (const fx of [-0.018, 0.018]) tube([fx, 0, -0.02], [fx, 0.075, 0.0], 0.005, frame, caster);
+  }
+  tube([-rail, yRail, -0.22], [rail, yRail, -0.22], 0.011);             // cross brace under the seat
+  tube([-rail, 0.17, 0.1], [rail, 0.17, 0.1], 0.011);
+
+  // footrests: hangers + plates; placed under the feet by fitToPatient()
+  const footrest = new THREE.Group();
+  wc.add(footrest);
+  const plateMat = new THREE.MeshStandardMaterial({ color: 0x2a2c30, metalness: 0.4, roughness: 0.6 });
+  const plates = [-1, 1].map(() => {
+    const p = add(new THREE.Mesh(new RoundedBoxGeometry(0.15, 0.014, 0.12, 2, 0.004), plateMat), { cast: true, parent: footrest });
+    p.position.set(0, 0.04, 0.42);
+    return p;
+  });
+  const hangers = [];
+  const placeFootrest = (feet) => {
+    for (const h of hangers) { h.geometry.dispose(); footrest.remove(h); }
+    hangers.length = 0;
+    feet.forEach((f, i) => {
+      const s = f.x > 0 ? 1 : -1;
+      plates[i].position.set(f.x, f.y - 0.007, f.z);
+      hangers.push(tube([s * rail, 0.17, 0.33], [s * rail, f.y, f.z + 0.02], 0.011, frame, footrest));
+      hangers.push(tube([s * rail, f.y, f.z + 0.02], [f.x + s * 0.075, f.y - 0.004, f.z + 0.02], 0.008, frame, footrest));
+    });
+  };
+  placeFootrest([{ x: -0.1, y: 0.05, z: 0.42 }, { x: 0.1, y: 0.05, z: 0.42 }]);
+
+  return {
+    group: wc,
+    /** Move the footrest plates under the soles of the loaded avatar (local space of the anchor). */
+    fitToPatient(head) {
+      const arm = head.armature;
+      arm.updateMatrixWorld(true);
+      const toLocal = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+      // lowest skinned vertex of the whole body = the soles (she is seated)
+      let soleY = Infinity;
+      arm.traverse((o) => {
+        if (!o.isSkinnedMesh) return;
+        o.computeBoundingBox();
+        const b = o.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(toLocal);
+        soleY = Math.min(soleY, b.min.y);
+      });
+      const v = new THREE.Vector3(), w = new THREE.Vector3();
+      const feet = ['Left', 'Right'].map((side) => {
+        arm.getObjectByName(side + 'Foot').getWorldPosition(v).applyMatrix4(toLocal);
+        arm.getObjectByName(side + 'ToeBase').getWorldPosition(w).applyMatrix4(toLocal);
+        return { x: (v.x + w.x) / 2, y: Math.max(0.03, soleY), z: (v.z + w.z) / 2 + 0.01 };
+      });
+      placeFootrest(feet);
+    }
+  };
 }
 
 // =================================================================================================
