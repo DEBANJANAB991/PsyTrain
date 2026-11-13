@@ -36,20 +36,22 @@ export const SEATED_POSE = {
 // Arm / hand placements. 'rest' = hands on thighs. Applied on top of SEATED_POSE.
 export const ARMS = {
   rest: {
-    'LeftArm.rotation': { x: 1.0, y: 0.4, z: -0.1 },
-    'RightArm.rotation': { x: 1.0, y: -0.4, z: 0.1 },
-    'LeftForeArm.rotation': { x: 0, y: 0, z: 0.9 },
-    'RightForeArm.rotation': { x: 0, y: 0, z: -0.9 }
+    'LeftArm.rotation': { x: 1.0, y: 0.75, z: -0.1 },
+    'RightArm.rotation': { x: 1.0, y: -0.75, z: 0.1 },
+    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.15 },
+    'RightForeArm.rotation': { x: 0, y: 0, z: -1.15 }
   },
+  // hands held together in the lap
   clasped: {
-    'LeftArm.rotation': { x: 1.0, y: 0.4, z: -0.1 },
-    'RightArm.rotation': { x: 1.0, y: -0.4, z: 0.1 },
-    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.2 },
-    'RightForeArm.rotation': { x: 0, y: 0, z: -1.2 }
+    'LeftArm.rotation': { x: 1.0, y: 1.0, z: -0.1 },
+    'RightArm.rotation': { x: 1.0, y: -1.0, z: 0.1 },
+    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.75 },
+    'RightForeArm.rotation': { x: 0, y: 0, z: -1.75 }
   },
+  // forearms folded across the belly
   crossed: {
-    'LeftArm.rotation': { x: 1.0, y: 0.4, z: -0.1 },
-    'RightArm.rotation': { x: 1.0, y: -0.4, z: 0.1 },
+    'LeftArm.rotation': { x: 1.0, y: 1.0, z: 0.4 },
+    'RightArm.rotation': { x: 1.0, y: -1.0, z: -0.4 },
     'LeftForeArm.rotation': { x: 0, y: 0, z: 1.9 },
     'RightForeArm.rotation': { x: 0, y: 0, z: -1.9 }
   }
@@ -68,7 +70,7 @@ export const FACE = {
   tense: {
     browInnerUp: 0.7, browDownLeft: 0.35, browDownRight: 0.2,
     mouthPressLeft: 0.9, mouthPressRight: 0.9, mouthRollLower: 0.3,
-    eyeWideLeft: 0.5, eyeWideRight: 0.5, eyesLookDown: 0.0, jawForward: 0.1
+    eyeWideLeft: 0.7, eyeWideRight: 0.7, eyesLookDown: 0.0, jawForward: 0.1
   },
   anxious: {
     browInnerUp: 1.0, browOuterUpLeft: 0.55, browOuterUpRight: 0.45,
@@ -77,20 +79,22 @@ export const FACE = {
     mouthFrownLeft: 0.2, mouthFrownRight: 0.2, eyesLookDown: 0.0
   },
   angry: {
+    // glare: brows hard down, upper lids a touch raised, nose wrinkled, lips tight / snarling
     browDownLeft: 1.0, browDownRight: 1.0, browInnerUp: 0.0,
-    eyeSquintLeft: 0.55, eyeSquintRight: 0.6, eyeWideLeft: 0.0,
-    noseSneerLeft: 0.6, noseSneerRight: 0.5,
-    mouthPressLeft: 0.7, mouthPressRight: 0.7, mouthFrownLeft: 0.55, mouthFrownRight: 0.55,
-    mouthUpperUpLeft: 0.25, mouthUpperUpRight: 0.15, jawForward: 0.35, mouthRollLower: 0.25, eyesLookDown: 0.0
+    eyeSquintLeft: 0.3, eyeSquintRight: 0.35, eyeWideLeft: 0.25, eyeWideRight: 0.25,
+    noseSneerLeft: 0.7, noseSneerRight: 0.6,
+    mouthPressLeft: 0.45, mouthPressRight: 0.45, mouthFrownLeft: 0.35, mouthFrownRight: 0.35,
+    mouthUpperUpLeft: 0.55, mouthUpperUpRight: 0.4, mouthLowerDownLeft: 0.25, mouthLowerDownRight: 0.2,
+    jawForward: 0.35, eyesLookDown: 0.0
   },
   sad: {
     browInnerUp: 1.0, browDownLeft: 0.2, browDownRight: 0.2,
     mouthFrownLeft: 0.7, mouthFrownRight: 0.7, mouthShrugLower: 0.45, mouthRollLower: 0.3,
-    eyeSquintLeft: 0.25, eyeSquintRight: 0.25, eyeBlinkLeft: 0.28, eyeBlinkRight: 0.28, eyesLookDown: 0.45
+    eyeSquintLeft: 0.25, eyeSquintRight: 0.25, eyeBlinkLeft: 0.08, eyeBlinkRight: 0.08, eyesLookDown: 0.15
   },
   withdrawn: {
     browInnerUp: 0.5, mouthFrownLeft: 0.3, mouthFrownRight: 0.3,
-    eyeBlinkLeft: 0.3, eyeBlinkRight: 0.3, eyesLookDown: 0.45, mouthClose: 0.0
+    eyeBlinkLeft: 0.08, eyeBlinkRight: 0.08, eyesLookDown: 0.15, mouthClose: 0.0
   },
   dismissive: {
     // asymmetric smirk, half-lidded, one brow up
@@ -164,10 +168,10 @@ export const BODY_DELTAS = {
   },
   dismissive: {
     // lean back, head tilted and slightly back
-    'Spine.rotation':  { x: -0.12, y: 0, z: 0.05 },
-    'Spine1.rotation': { x: -0.08, y: 0, z: 0.04 },
-    'Neck.rotation':   { x: -0.05, y: 0, z: 0.08 },
-    'Head.rotation':   { x: -0.08, y: 0.10, z: 0.12 },
+    'Spine.rotation':  { x: -0.08, y: 0, z: 0.05 },
+    'Spine1.rotation': { x: -0.06, y: 0, z: 0.04 },
+    'Neck.rotation':   { x: 0.04, y: 0, z: 0.08 },
+    'Head.rotation':   { x: 0.03, y: 0.08, z: 0.08 },
     'LeftShoulder.rotation':  { x: 0, y: 0, z: -0.04 },
     'RightShoulder.rotation': { x: 0, y: 0, z: 0.04 }
   },

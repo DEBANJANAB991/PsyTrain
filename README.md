@@ -34,8 +34,8 @@ entering, or drive it from the console / track B.
 | `src/config.js` | **All tunable numbers**: room, seated pose, per-mood face + body deltas, gaze style |
 | `src/scene.js` | Room, chair, lights, camera rig, VR button (reference space `local`, eye height 1.2 m) |
 | `src/patient.js` | Loads the avatar via TalkingHead `avatarOnly` mode into our scene |
-| `src/affect.js` | `setAffect({emotion, intensity, gaze, gesture})` -> TalkingHead moods + pose + look-at |
-| `src/idle.js` | Extra idle behaviour (look-away when uncomfortable) |
+| `src/affect.js` | `setAffect({emotion, intensity, gaze, gesture, behavior})` -> TalkingHead moods + pose + look-at |
+| `src/bodylang.js` | Procedural body language: fidgeting, foot tap, knee bounce, posture shifts, looking around, breathing, shrug |
 | `src/debug.js` | Debug panel |
 | `src/vendor/talkinghead/` | Vendored TalkingHead modules (MIT) with 2 small patches, marked `PSYTRAIN PATCH` |
 | `public/avatars/mpfb.glb` | Sample avatar (CC0, from the TalkingHead repo, 36 MB) |
@@ -44,14 +44,33 @@ entering, or drive it from the console / track B.
 
 ```js
 window.patient.setAffect({
-  emotion: 'tense',      // neutral | tense | withdrawn | relieved
+  emotion: 'anxious',    // neutral | tense | anxious | angry | sad | withdrawn | dismissive | relieved
   intensity: 0.7,        // 0..1
-  gaze: 'away',          // student | away | down   (optional)
-  gesture: 'nod'         // none | nod              (optional)
+  gaze: 'around',        // student | away | down | around   (optional)
+  gesture: 'shrug',      // none | nod | shake | shrug       (optional)
+  behavior: { fidget: 0.9, lookAround: 0.5, arms: 'clasped' } // optional overrides (see below)
 });
 ```
-Any field can be omitted; omitted fields keep their previous value. This is exactly the shape for the
-ElevenLabs `set_affect` client tool.
+Omitted fields keep their previous value. Picking a new `emotion` resets `behavior` overrides to that
+emotion's profile; `behavior: null` clears overrides. This is the shape for the ElevenLabs `set_affect` tool.
+
+## Body language (configurable)
+
+Every emotion has a movement profile in `BEHAVIOR` (`src/config.js`); the effective values are the neutral
+profile blended towards the emotion by `intensity`, then your overrides:
+
+| Key | Effect |
+|---|---|
+| `fidget` | hands, fingers, forearms keep busy; wringing / thumb rubbing in bursts |
+| `footTap`, `legBounce` | foot tapping / knee bouncing in bursts |
+| `shift` | posture shifts: lean forward/back, weight to one side, twist, slump |
+| `lookAround` | how often the patient looks round the room (sometimes a double glance) |
+| `gazeStudent` | probability of keeping eye contact |
+| `blink`, `breath`, `headMotion` | rate multipliers / amount of idle head movement |
+| `arms` | `rest` (hands on thighs) / `clasped` (lap) / `crossed` |
+
+The debug panel has a slider per key. Faces, micro-expressions and posture per emotion live in `FACE`,
+`MICRO` and `BODY_DELTAS`.
 
 ## Tuning the seated pose
 
@@ -66,7 +85,8 @@ knees -1.5 and feet 1.4 give vertical shins and flat feet.
 ## Vendor patches (why)
 
 1. `lipsyncGetProcessor`: static import paths so Vite can bundle the lip-sync modules.
-2. `opt.hipFeetBalance`: TalkingHead re-centres the hips under the feet each frame assuming the avatar
+2. Extra delta bones (Spine2, shoulders, feet, toes) so `bodylang.js` can drive them per frame.
+3. `opt.hipFeetBalance`: TalkingHead re-centres the hips under the feet each frame assuming the avatar
    stands at the world origin. That drags a seated avatar placed in a room off its chair, so we switch it
    off (`hipFeetBalance: false`). It also saves a per-frame bounding-box pass over the skinned mesh.
 
@@ -76,6 +96,6 @@ knees -1.5 and feet 1.4 give vertical shins and flat feet.
 - M2 seated pose: done, hands rest beside the thighs, not on them yet
 - M3 headset check: **needs a real Vision Pro**
 - M4 moods + buttons: done in desktop view
-- M5 subtle movement: breathing, eye wander, look-away and nod are implemented; gaze-follows-headset
-  needs checking in XR
+- M5 movement: breathing, fidgeting, foot tap, knee bounce, posture shifts, look-around, blink rates,
+  micro-expressions, nod/shake/shrug; gaze-follows-headset needs checking in XR
 - Not started: track B bridge (ElevenLabs audio -> `streamAudio`, `set_affect` -> `setAffect`)

@@ -31,6 +31,14 @@ export async function createPatient({ scene, camera, anchor, onProgress }) {
   );
 
   anchor.add(head.armature);
+  head.armature.traverse((o) => {
+    if (o.isMesh) {
+      o.frustumCulled = false;
+      const transparent = Array.isArray(o.material) ? o.material.some((m) => m.transparent) : o.material?.transparent;
+      o.castShadow = !transparent;   // hair cards / lashes would cast rectangular shadows
+      o.receiveShadow = true;
+    }
+  });
   head.armature.position.set(AVATAR.seatOffset.x, AVATAR.seatOffset.y, AVATAR.seatOffset.z);
   return head;
 }

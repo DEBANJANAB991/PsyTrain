@@ -17,6 +17,8 @@ export function createScene(container) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.xr.enabled = true;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.xr.setReferenceSpaceType('local');
   container.appendChild(renderer.domElement);
 
@@ -39,12 +41,24 @@ export function createScene(container) {
 
   buildRoom(scene, patientZ);
 
-  // Lights
-  const key = new THREE.DirectionalLight(0xfff1e0, 1.6);
-  key.position.set(1.5, 2.5, 0.5);
+  // Lights: warm key from the window side (soft shadows), cool fill, rim from behind, ceiling bounce.
+  const key = new THREE.DirectionalLight(0xfff0dd, 2.2);
+  key.position.set(2.2, 2.6, patientZ + 1.6);
   key.target.position.set(0, 1, patientZ);
-  scene.add(key, key.target);
-  scene.add(new THREE.HemisphereLight(0xdde6ff, 0x806f5a, 0.5));
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  Object.assign(key.shadow.camera, { left: -1.6, right: 1.6, top: 2, bottom: -0.5, near: 0.5, far: 8 });
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.025;
+  key.shadow.radius = 4;
+  const fill = new THREE.DirectionalLight(0xcfdcff, 0.7);
+  fill.position.set(-2, 1.6, patientZ + 2.2);
+  fill.target.position.set(0, 1, patientZ);
+  const rim = new THREE.DirectionalLight(0xfff4e6, 0.9);
+  rim.position.set(-0.8, 2.4, patientZ - 2.2);
+  rim.target.position.set(0, 1.2, patientZ);
+  scene.add(key, key.target, fill, fill.target, rim, rim.target);
+  scene.add(new THREE.HemisphereLight(0xdde6ff, 0x806f5a, 0.35));
 
   // Desktop camera: orbit around the patient's head for debugging
   const desktopPos = new THREE.Vector3(0, ROOM.eyeHeight, 0);
@@ -92,6 +106,7 @@ function buildRoom(scene, patientZ) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mat(0x8a8277, 0.9));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, zc);
+  floor.receiveShadow = true;
   scene.add(floor);
 
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mat(0xe9e7e2));
@@ -103,6 +118,7 @@ function buildRoom(scene, patientZ) {
   const walls = new THREE.Mesh(new THREE.BoxGeometry(W, H + 0.04, D), mat(0xd8d4cc));
   walls.material.side = THREE.BackSide;
   walls.position.set(0, H / 2, zc);
+  walls.receiveShadow = true;
   scene.add(walls);
 
   // Chair for the patient
@@ -111,10 +127,12 @@ function buildRoom(scene, patientZ) {
   seat.position.set(0, seatHeight - 0.025, patientZ);
   const back = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.04), wood);
   back.position.set(0, seatHeight + 0.25, patientZ - 0.22);
+  for (const m of [seat, back]) { m.castShadow = true; m.receiveShadow = true; }
   scene.add(seat, back);
   for (const [dx, dz] of [[-0.22, -0.2], [0.22, -0.2], [-0.22, 0.2], [0.22, 0.2]]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, seatHeight - 0.05, 0.04), wood);
     leg.position.set(dx, (seatHeight - 0.05) / 2, patientZ + dz);
+    leg.castShadow = true;
     scene.add(leg);
   }
 
