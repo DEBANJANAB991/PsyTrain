@@ -11,12 +11,17 @@ npm install
 npm run dev          # http://localhost:5173  (Node 18+)
 ```
 
-The root URL opens the **landing page**: pick a patient and a behaviour, then **Enter consultation room** opens
-the 3D room (`/consult.html?case=extrovert&behavior=shy&patient=young-woman`). For now only the extrovert patient
-(the Avaturn young woman) is enabled, with two behaviours: **shy** and **aggressive**. The other patients show as
-"coming soon". Patients and behaviours are defined in `src/cases.js`. Each behaviour is a personality definition
-(Big Five traits, behaviour ranges, starting emotion, arm posture) that is registered with `Personality.define()`
-when the room loads. It changes face, posture, gaze and body language, not the voice.
+The root URL opens the **landing page**, one page in three steps:
+1. **Patient**: woman, man, or man in a wheelchair.
+2. **Personality (Big Five)**: each trait lower than usual / average / higher than usual (trait values 0.2 / 0.5 / 0.85).
+   Only *extraversion: higher than usual* is modelled so far; the other traits are fixed at average.
+3. **Difficult situation to train**: *easily distracted* or *aggressive*.
+
+**Enter consultation room** opens the 3D room, e.g.
+`/consult.html?patient=young-woman&extraversion=high&situation=distracted` (traits missing from the URL are average).
+Everything is defined in `src/cases.js`: enable more trait levels in `AVAILABLE_LEVELS`, add situations to `SITUATIONS`.
+The traits plus the situation's body language (behaviour ranges, starting emotion, arm posture) are registered as a
+personality with `Personality.define()` when the room loads. They change face, posture, gaze and body language, not the voice.
 
 Desktop: drag to orbit around the patient. The panel on the right has 4 mood buttons, an intensity
 slider, 3 gaze buttons and a nod. All of them call `affect.setAffect(...)`.
@@ -40,9 +45,9 @@ entering, or drive it from the console / track B.
 |---|---|
 | `src/config.js` | **All tunable numbers**: room, seated pose, per-mood face + body deltas, gaze style |
 | `src/scene.js` | Renderer, lights, camera rig, VR button (reference space `local`, eye height 1.2 m) |
-| `index.html`, `src/landing.js` | Landing page: choose a patient and a behaviour (no three.js loaded) |
+| `index.html`, `src/landing.js` | Landing page: choose patient, Big Five and difficult situation (no three.js loaded) |
 | `consult.html` | The 3D consultation room page (loads `src/main.js`) |
-| `src/cases.js` | Patients on the landing page and their behaviours (personality definitions) |
+| `src/cases.js` | Landing-page options (patients, trait levels, situations) and the URL / personality they turn into |
 | `src/photoroom.js` | Default room: a real 360° photo projected onto the floor (`GroundedSkybox`), lit by the same room's HDR, plus a real chair model |
 | `src/room.js` | Procedural consultation room (`/consult.html?room=procedural`): window, furniture, wheelchair, canvas textures |
 | `public/rooms/` | Poly Haven "Reading Room": 6K tonemapped photo (background) + 1K HDR (lighting). CC0 |

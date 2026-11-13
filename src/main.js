@@ -7,15 +7,16 @@ import { Voice } from './voice.js';
 import { Personality } from './personality.js';
 import { createAgent, Director } from './agent.js';
 import { createDebugPanel } from './debug.js';
-import { selectedCase } from './cases.js';
+import { selectedSession, sessionPersonality } from './cases.js';
 import * as THREE from 'three';
 import * as cfg from './config.js';
 
 const status = document.getElementById('status');
 const app = document.getElementById('app');
 const { renderer, scene, camera, patientAnchor, controls, fitToPatient, roomReady } = createScene(app);
-// patient + behaviour chosen on the landing page (index.html), e.g. ?case=extrovert&behavior=shy
-const selection = selectedCase();
+// patient + Big Five + situation chosen on the landing page (index.html),
+// e.g. ?patient=young-woman&extraversion=high&situation=distracted
+const session = selectedSession();
 
 let head = null, affect = null, body = null, gaze = null, voice = null, personality = null, agent = null, director = null;
 
@@ -39,9 +40,9 @@ let head = null, affect = null, body = null, gaze = null, voice = null, personal
     agent = createAgent({ affect, personality });
     director = new Director(agent);
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
-    if (selection) {
+    if (session) {
       // registered as a custom personality, so it also shows in the debug panel and to the director agent
-      const name = personality.define({ name: `${selection.caseDef.key}_${selection.behaviorKey}`, ...selection.behavior.personality });
+      const name = personality.define(sessionPersonality(session));
       personality.setPreset(name, { applyEmotion: true });
     }
     createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director });

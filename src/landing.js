@@ -1,76 +1,58 @@
-import { CASES, consultUrl } from './cases.js';
+import {
+  PATIENT_OPTIONS, TRAITS, LEVELS, AVAILABLE_LEVELS, SITUATIONS,
+  defaultSession, describeSession, consultUrl
+} from './cases.js';
 
 /**
- * Landing page: pick a patient (CASES in cases.js; disabled ones show as "coming soon"), pick a behaviour,
- * then go to the 3D room (consult.html). No three.js is loaded here.
+ * Landing page: 1. patient, 2. Big Five personality, 3. difficult situation, then into the 3D room
+ * (consult.html). Options that are not modelled yet are shown disabled. No three.js is loaded here.
  */
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const PERSON = '<svg viewBox="0 0 64 80" aria-hidden="true"><circle cx="32" cy="22" r="14" fill="#6b6f74"/><path d="M6 78c0-17 11.6-28 26-28s26 11 26 28z" fill="#6b6f74"/></svg>';
+const SOON = 'Not modelled yet';
 
-const state = { caseKey: null, behaviorKey: null };
+const state = defaultSession();
 
-// ---- patients ---------------------------------------------------------------------------------------
+// ---- 1. patient -------------------------------------------------------------------------------------
 const grid = $('#patients');
-grid.innerHTML = CASES.map((c) => `
-  <button class="patient" data-key="${esc(c.key)}" ${c.enabled ? 'aria-pressed="false"' : 'disabled aria-disabled="true"'}>
-    <div class="img" ${c.image ? `style="background-image:url('${esc(c.image)}')"` : ''}>${c.image ? '' : PERSON}</div>
-    ${c.enabled ? '' : '<div class="badge">Coming soon</div>'}
+grid.innerHTML = PATIENT_OPTIONS.map((p) => `
+  <button class="patient" data-key="${esc(p.key)}" ${p.enabled ? `aria-pressed="${p.key === state.patient}"` : 'disabled aria-disabled="true"'}>
+    <div class="img" style="background-image:url('${esc(p.image)}')"></div>
+    ${p.enabled ? '' : '<div class="badge">Coming soon</div>'}
     <div class="tick" aria-hidden="true">✓</div>
-    <div class="txt"><b>${esc(c.title)}</b><span>${esc(c.who)}</span></div>
+    <div class="txt"><b>${esc(p.title)}</b><span>${esc(p.who)}</span></div>
   </button>`).join('');
 grid.addEventListener('click', (e) => {
   const btn = e.target.closest('.patient');
   if (!btn || btn.disabled) return;
-  selectCase(btn.dataset.key);
+  state.patient = btn.dataset.key;
+  for (const b of grid.querySelectorAll('.patient:not(:disabled)')) b.setAttribute('aria-pressed', String(b.dataset.key === state.patient));
+  update();
 });
 
-function selectCase(key) {
-  if (state.caseKey !== key) state.behaviorKey = null;
-  state.caseKey = key;
-  for (const b of grid.querySelectorAll('.patient:not(:disabled)')) b.setAttribute('aria-pressed', String(b.dataset.key === key));
-  renderBehaviors();
-  update();
-  // the behaviour choices sit below the patient grid: bring them into view
-  const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  $('#behaviors').scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
-}
+// ---- 2. Big Five --------------------------------------------------------------------------------------
+$('#traits').innerHTML = `
+  <thead><tr><th scope="col"><span class="sr">Trait</span></th>${LEVELS.map((l) => `<th scope="col">${esc(l.label)}</th>`).join('')}</tr></thead>
+  <tbody>${TRAITS.map((t) => `<tr><th scope="row">${esc(t.label)}</th>${LEVELS.map((l) => {
+    const ok = AVAILABLE_LEVELS[t.key].includes(l.key);
+    return `<td><label class="dot${ok ? '' : ' off'}"${ok ? '' : ` title="${SOON}"`}>
+      <input type="radio" name="${esc(t.key)}" value="${esc(l.key)}" aria-label="${esc(`${t.label}: ${l.label}`)}"${ok ? '' : ' disabled'}${state.traits[t.key] === l.key ? ' checked' : ''}>
+      <span></span></label></td>`;
+  }).join('')}</tr>`).join('')}</tbody>`;
+$('#traits').addEventListener('change', (e) => { state.traits[e.target.name] = e.target.value; update(); });
 
-// ---- behaviours -------------------------------------------------------------------------------------
-function renderBehaviors() {
-  const c = CASES.find((x) => x.key === state.caseKey);
-  const box = $('#behaviors');
-  if (!c) {
-    $('#bfor').textContent = '';
-    $('#about').hidden = true;
-    box.innerHTML = '<p class="hint">Select a patient first.</p>';
-    return;
-  }
-  $('#bfor').textContent = `for the ${c.title.toLowerCase()}`;
-  $('#about').hidden = !c.blurb;
-  $('#about').textContent = c.blurb || '';
-  box.innerHTML = `<div class="behaviors" role="radiogroup" aria-label="Behaviour">${Object.entries(c.behaviors).map(([k, b]) => `
-    <label class="behavior">
-      <input type="radio" name="behavior" value="${esc(k)}" ${state.behaviorKey === k ? 'checked' : ''}>
-      <b>${esc(b.label)}</b><span>${esc(b.blurb)}</span>
-    </label>`).join('')}</div>`;
-  box.querySelectorAll('input').forEach((i) => (i.onchange = () => { state.behaviorKey = i.value; update(); }));
-}
+// ---- 3. situation -------------------------------------------------------------------------------------
+$('#situations').innerHTML = SITUATIONS.map((x) => `
+  <label class="behavior${x.enabled ? '' : ' off'}">
+    <input type="radio" name="situation" value="${esc(x.key)}"${x.enabled ? '' : ' disabled'}${state.situation === x.key ? ' checked' : ''}>
+    <b>${esc(x.label)}${x.enabled ? '' : ` <em>${SOON}</em>`}</b><span>${esc(x.blurb)}</span>
+  </label>`).join('');
+$('#situations').addEventListener('change', (e) => { state.situation = e.target.value; update(); });
 
 // ---- start --------------------------------------------------------------------------------------------
 function update() {
-  const c = CASES.find((x) => x.key === state.caseKey);
-  const b = c?.behaviors?.[state.behaviorKey];
-  $('#start').disabled = !b;
-  $('#summary').innerHTML = !c ? 'Select a patient and a behaviour.'
-    : !b ? `<b>${esc(c.title)}</b>: now choose a behaviour.`
-    : `<b>${esc(c.title)}</b> · ${esc(c.who)} · <b>${esc(b.label)}</b>`;
+  const d = describeSession(state);
+  $('#summary').innerHTML = [`<b>${esc(d.who)}</b>`, ...d.traits.map(esc), `<b>${esc(d.situation)}</b>`].join(' · ');
 }
-
-$('#start').onclick = () => {
-  const c = CASES.find((x) => x.key === state.caseKey);
-  if (c?.behaviors?.[state.behaviorKey]) location.href = consultUrl(c, state.behaviorKey);
-};
-
-renderBehaviors();
+$('#start').onclick = () => { location.href = consultUrl(state); };
 update();

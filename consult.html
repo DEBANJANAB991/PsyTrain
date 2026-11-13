@@ -32,9 +32,9 @@
   <div id="status">Loading patient…</div>
   <div id="debug" hidden></div>
   <script type="module">
-    import { selectedCase } from '/src/cases.js';
-    const s = selectedCase();
-    if (s) document.getElementById('caselabel').textContent = `· ${s.caseDef.title}, ${s.behavior.label.toLowerCase()}`;
+    import { selectedSession, describeSession } from '/src/cases.js';
+    const s = selectedSession();
+    if (s) { const d = describeSession(s); document.getElementById('caselabel').textContent = `· ${d.who}, ${d.situation}`; }
   </script>
   <script type="module" src="/src/main.js"></script>
 </body>

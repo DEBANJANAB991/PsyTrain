@@ -1,77 +1,132 @@
 /**
- * Patients offered on the landing page (index.html) and the behaviours a student can pick for them.
+ * What the student sets up on the landing page (index.html), in three steps:
+ *   1. patient     which avatar to load (key in PATIENTS, config.js)
+ *   2. Big Five    each trait lower than usual / average / higher than usual
+ *   3. situation   the difficult situation to train (body language preset: ranges, emotion, arms)
  * No three.js here: the landing page imports this file and should stay light.
  *
- *   patient    key in PATIENTS (config.js): which avatar and visible conditions to load
- *   behaviors  how the patient acts in this consultation. `personality` is a personality definition in the
- *              format of Personality.define() (personality.js): Big Five traits, behaviour ranges, the
- *              emotion she starts in and her arm posture. It drives face, posture, gaze and body language;
- *              the voice is not affected.
- *   enabled    false = shown on the landing page as "coming soon"
- *
- * The 3D page is opened as consult.html?case=<key>&behavior=<key>&patient=<patient>.
+ * Options that are not modelled yet stay visible but disabled (`enabled: false`, AVAILABLE_LEVELS).
+ * The 3D page is opened as consult.html?patient=<key>&extraversion=high&situation=<key>;
+ * traits missing from the URL are average. The URL can be bookmarked or shared.
  */
 
-// Big Five profile of an outgoing, expressive person; the behaviours below start from it
-const EXTROVERT = { openness: 0.7, conscientiousness: 0.5, extraversion: 0.85, agreeableness: 0.6, neuroticism: 0.4 };
-
-export const CASES = [
-  {
-    key: 'extrovert',
-    title: 'Extrovert patient',
-    who: 'Young woman',
-    image: '/landing/young-woman.jpg',
-    blurb: 'Outgoing and expressive by nature. Choose how she comes across in today\'s consultation.',
-    patient: 'young-woman',
-    enabled: true,
-    behaviors: {
-      shy: {
-        label: 'Shy',
-        blurb: 'Embarrassed and hesitant. Looks down and away, keeps her hands clasped, fidgets, and only holds eye contact for moments.',
-        personality: {
-          description: 'outgoing by nature but shy and embarrassed here: looks down, little eye contact, clasped hands, fidgets',
-          traits: { ...EXTROVERT, extraversion: 0.7, agreeableness: 0.7, neuroticism: 0.65 },
-          ranges: { gazeStudent: { min: 0.15, max: 0.55 }, lookAround: { min: 0.1, max: 0.5 }, fidget: { min: 0.3, max: 0.8 }, headMotion: { min: 0.2, max: 0.6 } },
-          variability: 0.3,
-          default_emotion: 'withdrawn',
-          default_intensity: 0.55,
-          arms: 'clasped'
-        }
-      },
-      aggressive: {
-        label: 'Aggressive',
-        blurb: 'Irritable and confrontational. Stares at you, sits with her arms crossed, frowns, and moves restlessly.',
-        personality: {
-          description: 'outgoing and confrontational: irritable, stares, arms crossed, restless',
-          traits: { ...EXTROVERT, extraversion: 0.9, agreeableness: 0.1, neuroticism: 0.65, conscientiousness: 0.35 },
-          ranges: { gazeStudent: { min: 0.75, max: 1 }, headMotion: { min: 0.5, max: 1 } },
-          variability: 0.25,
-          default_emotion: 'angry',
-          default_intensity: 0.65,
-          arms: 'crossed'
-        }
-      }
-    }
-  },
-  { key: 'young-man', title: 'Young man', who: 'No visible condition', image: '/landing/young-man.jpg', enabled: false },
-  { key: 'wheelchair', title: 'Man in a wheelchair', who: 'Physical disability', image: '/landing/man-wheelchair.jpg', enabled: false },
-  { key: 'face-paint', title: 'Red paint on face', who: 'Young woman', image: '/landing/face-paint.jpg', enabled: false },
-  { key: 'head-wound', title: 'Head injury', who: 'Young man', image: '/landing/head-wound.jpg', enabled: false },
-  { key: 'child', title: 'Child', who: '3D model not available yet', image: null, enabled: false },
-  { key: 'older-man', title: 'Older man', who: '3D model not available yet', image: null, enabled: false },
-  { key: 'older-woman', title: 'Older woman', who: '3D model not available yet', image: null, enabled: false }
+export const PATIENT_OPTIONS = [
+  { key: 'young-woman', title: 'Woman', who: 'No visible condition', image: '/landing/young-woman.jpg', enabled: true },
+  { key: 'young-man', title: 'Man', who: 'No visible condition', image: '/landing/young-man.jpg', enabled: true },
+  { key: 'man-wheelchair', title: 'Man in a wheelchair', who: 'Physical disability', image: '/landing/man-wheelchair.jpg', enabled: true }
 ];
 
-/** The enabled case + behaviour named in a URL's search params, or null. */
-export function selectedCase(search = globalThis.location?.search ?? '') {
+export const TRAITS = [
+  { key: 'openness', label: 'Openness', adjective: 'open' },
+  { key: 'conscientiousness', label: 'Conscientiousness', adjective: 'conscientious' },
+  { key: 'extraversion', label: 'Extraversion', adjective: 'extraverted' },
+  { key: 'agreeableness', label: 'Agreeableness', adjective: 'agreeable' },
+  { key: 'neuroticism', label: 'Neuroticism', adjective: 'neurotic' }
+];
+
+/** Three levels per trait. `value` is the 0..1 trait value used by personality.js. */
+export const LEVELS = [
+  { key: 'low', label: 'Lower than usual', value: 0.2 },
+  { key: 'average', label: 'Average', value: 0.5 },
+  { key: 'high', label: 'Higher than usual', value: 0.85 }
+];
+
+/**
+ * Trait levels that can be picked today. Only a highly extraverted patient is modelled, so every other
+ * trait is fixed at average. Add levels here once the patient prompt and body language support them.
+ */
+export const AVAILABLE_LEVELS = {
+  openness: ['average'],
+  conscientiousness: ['average'],
+  extraversion: ['high'],
+  agreeableness: ['average'],
+  neuroticism: ['average']
+};
+
+/**
+ * Difficult situations. `body` is the body-language part, in the format of Personality.define()
+ * (personality.js) minus the traits, which come from step 2.
+ */
+export const SITUATIONS = [
+  {
+    key: 'distracted',
+    label: 'Easily distracted',
+    blurb: 'Talks a lot, drifts into anecdotes and loses the thread. Train steering the interview back to your question.',
+    enabled: true,
+    body: {
+      description: 'easily distracted: looks around the room, restless hands, behaviour drifts a lot',
+      ranges: { lookAround: { min: 0.5, max: 1 }, fidget: { min: 0.4, max: 1 } },
+      variability: 0.45,
+      default_emotion: 'neutral',
+      default_intensity: 0.5
+    }
+  },
+  {
+    key: 'aggressive',
+    label: 'Aggressive',
+    blurb: 'Irritable and confrontational. Stares at you, sits with arms crossed, frowns and moves restlessly. Train staying calm and de-escalating.',
+    enabled: true,
+    body: {
+      description: 'confrontational: irritable, stares, arms crossed, restless',
+      ranges: { gazeStudent: { min: 0.75, max: 1 }, headMotion: { min: 0.5, max: 1 } },
+      variability: 0.25,
+      default_emotion: 'angry',
+      default_intensity: 0.65,
+      arms: 'crossed'
+    }
+  }
+];
+
+const enabled = (list, key) => list.find((x) => x.key === key && x.enabled);
+// any level is accepted from the URL (handy for testing); the landing page only offers AVAILABLE_LEVELS
+const level = (v) => (LEVELS.some((l) => l.key === v) ? v : 'average');
+
+/** The setup pre-selected on the landing page. */
+export function defaultSession() {
+  return {
+    patient: PATIENT_OPTIONS.find((p) => p.enabled).key,
+    traits: Object.fromEntries(TRAITS.map((t) => [t.key, AVAILABLE_LEVELS[t.key][0]])),
+    situation: SITUATIONS.find((s) => s.enabled).key
+  };
+}
+
+/** The session in a URL's search params, or null if it names no known patient + situation. */
+export function selectedSession(search = globalThis.location?.search ?? '') {
   const q = new URLSearchParams(search);
-  const c = CASES.find((x) => x.key === q.get('case') && x.enabled);
-  const b = c?.behaviors?.[q.get('behavior')];
-  return c && b ? { caseDef: c, behaviorKey: q.get('behavior'), behavior: b } : null;
+  const patient = enabled(PATIENT_OPTIONS, q.get('patient'));
+  const situation = enabled(SITUATIONS, q.get('situation'));
+  if (!patient || !situation) return null;
+  return {
+    patient: patient.key,
+    traits: Object.fromEntries(TRAITS.map((t) => [t.key, level(q.get(t.key))])),
+    situation: situation.key
+  };
 }
 
 /** Link from the landing page into the 3D room. */
-export function consultUrl(caseDef, behaviorKey) {
-  const q = new URLSearchParams({ case: caseDef.key, behavior: behaviorKey, patient: caseDef.patient });
+export function consultUrl(s) {
+  const q = new URLSearchParams({ patient: s.patient });
+  for (const t of TRAITS) if (s.traits[t.key] !== 'average') q.set(t.key, s.traits[t.key]);
+  q.set('situation', s.situation);
   return `/consult.html?${q}`;
+}
+
+/** Short parts for summaries: { who, traits: ['more extraverted than usual'], situation: 'easily distracted' }. */
+export function describeSession(s) {
+  return {
+    who: PATIENT_OPTIONS.find((p) => p.key === s.patient)?.title ?? 'Patient',
+    traits: TRAITS.filter((t) => s.traits[t.key] !== 'average')
+      .map((t) => `${s.traits[t.key] === 'high' ? 'more' : 'less'} ${t.adjective} than usual`),
+    situation: SITUATIONS.find((x) => x.key === s.situation)?.label.toLowerCase() ?? ''
+  };
+}
+
+/** Personality definition for Personality.define(): Big Five from step 2 + body language of the situation. */
+export function sessionPersonality(s) {
+  const { body } = SITUATIONS.find((x) => x.key === s.situation);
+  return {
+    name: `session_${s.situation}`,
+    ...body,
+    traits: Object.fromEntries(TRAITS.map((t) => [t.key, LEVELS.find((l) => l.key === s.traits[t.key]).value]))
+  };
 }
