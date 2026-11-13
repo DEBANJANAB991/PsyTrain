@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meet Your AI Patient</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #14161a; color: #e8eaed; font-family: system-ui, sans-serif; overflow: hidden; }
+    #app { position: fixed; inset: 0; }
+    #app canvas { display: block; }
+    #status { position: fixed; left: 12px; top: 12px; font-size: 13px; opacity: .8; pointer-events: none; }
+    #debug { position: fixed; right: 12px; top: 12px; width: 240px; padding: 12px; border-radius: 10px;
+             background: rgba(20,22,26,.85); backdrop-filter: blur(6px); display: flex; flex-direction: column; gap: 8px; }
+    #debug[hidden] { display: none; }
+    #debug h3 { margin: 0 0 2px; font-size: 13px; font-weight: 600; opacity: .8; }
+    #debug button { padding: 8px; border: 1px solid #3a3f47; border-radius: 6px; background: #22262c; color: inherit; cursor: pointer; font-size: 14px; }
+    #debug button.active { background: #3b6df0; border-color: #3b6df0; }
+    #debug label { font-size: 12px; opacity: .8; display: flex; flex-direction: column; gap: 4px; }
+    #debug .row { display: flex; gap: 6px; }
+    #debug .row button { flex: 1; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="status">Loading patient…</div>
+  <div id="debug" hidden></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

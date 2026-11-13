@@ -1,0 +1,207 @@
+// All tunable numbers live here: room layout, seated pose, emotions, body-language profiles.
+// Angles are radians (TalkingHead pose format: 'Bone.rotation': {x,y,z}).
+
+export const ROOM = {
+  eyeHeight: 1.2,          // seated eye level of the student (m); XR 'local' space is lifted to this
+  patientDistance: 1.4,    // student eye -> patient (m)
+  seatHeight: 0.46,        // chair seat surface height (m)
+  width: 4.5, depth: 5, height: 2.7
+};
+
+export const AVATAR = {
+  url: '/avatars/mpfb.glb',
+  body: 'F',
+  seatOffset: { x: 0, y: 0, z: 0 }
+};
+
+// ---------------------------------------------------------------------------------------------
+// Seated base pose (derived from TalkingHead's 'straight' pose with new hips/legs/feet/arms).
+// ---------------------------------------------------------------------------------------------
+export const SEATED_POSE = {
+  'Hips.position': { x: 0, y: 0.60, z: 0 },
+  'Hips.rotation': { x: 0.0, y: 0, z: 0 },
+  'Spine.rotation': { x: -0.05, y: 0, z: 0 },
+  'Spine1.rotation': { x: -0.02, y: 0, z: 0 },
+  'Spine2.rotation': { x: 0.02, y: 0, z: 0 },
+  'Neck.rotation': { x: 0.05, y: 0, z: 0 },
+  'Head.rotation': { x: 0.03, y: 0, z: 0 },
+  'LeftUpLeg.rotation': { x: -1.5, y: -0.08, z: 3.1 },
+  'RightUpLeg.rotation': { x: -1.5, y: 0.08, z: -3.1 },
+  'LeftLeg.rotation': { x: -1.5, y: 0, z: 0 },
+  'RightLeg.rotation': { x: -1.5, y: 0, z: 0 },
+  'LeftFoot.rotation': { x: 1.4, y: 0, z: 0 },
+  'RightFoot.rotation': { x: 1.4, y: 0, z: 0 }
+};
+
+// Arm / hand placements. 'rest' = hands on thighs. Applied on top of SEATED_POSE.
+export const ARMS = {
+  rest: {
+    'LeftArm.rotation': { x: 1.0, y: 0.4, z: -0.1 },
+    'RightArm.rotation': { x: 1.0, y: -0.4, z: 0.1 },
+    'LeftForeArm.rotation': { x: 0, y: 0, z: 0.9 },
+    'RightForeArm.rotation': { x: 0, y: 0, z: -0.9 }
+  },
+  clasped: {
+    'LeftArm.rotation': { x: 1.0, y: 0.4, z: -0.1 },
+    'RightArm.rotation': { x: 1.0, y: -0.4, z: 0.1 },
+    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.2 },
+    'RightForeArm.rotation': { x: 0, y: 0, z: -1.2 }
+  },
+  crossed: {
+    'LeftArm.rotation': { x: 1.0, y: 0.4, z: -0.1 },
+    'RightArm.rotation': { x: 1.0, y: -0.4, z: 0.1 },
+    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.9 },
+    'RightForeArm.rotation': { x: 0, y: 0, z: -1.9 }
+  }
+};
+
+// ---------------------------------------------------------------------------------------------
+// Emotions
+// ---------------------------------------------------------------------------------------------
+export const EMOTIONS = ['neutral', 'tense', 'anxious', 'angry', 'sad', 'withdrawn', 'dismissive', 'relieved'];
+export const GAZES = ['student', 'away', 'down', 'around'];
+export const GESTURES = ['none', 'nod', 'shake', 'shrug'];
+
+// Face: ARKit morph baselines at intensity 1 (scaled by intensity; neutral is the starting point).
+export const FACE = {
+  neutral: { eyesLookDown: 0.1 },
+  tense: {
+    browInnerUp: 0.7, browDownLeft: 0.35, browDownRight: 0.2,
+    mouthPressLeft: 0.9, mouthPressRight: 0.9, mouthRollLower: 0.3,
+    eyeWideLeft: 0.5, eyeWideRight: 0.5, eyesLookDown: 0.0, jawForward: 0.1
+  },
+  anxious: {
+    browInnerUp: 1.0, browOuterUpLeft: 0.55, browOuterUpRight: 0.45,
+    eyeWideLeft: 0.8, eyeWideRight: 0.75,
+    mouthStretchLeft: 0.45, mouthStretchRight: 0.35, mouthPressLeft: 0.25, mouthPressRight: 0.25,
+    mouthFrownLeft: 0.2, mouthFrownRight: 0.2, eyesLookDown: 0.0
+  },
+  angry: {
+    browDownLeft: 1.0, browDownRight: 1.0, browInnerUp: 0.0,
+    eyeSquintLeft: 0.55, eyeSquintRight: 0.6, eyeWideLeft: 0.0,
+    noseSneerLeft: 0.6, noseSneerRight: 0.5,
+    mouthPressLeft: 0.7, mouthPressRight: 0.7, mouthFrownLeft: 0.55, mouthFrownRight: 0.55,
+    mouthUpperUpLeft: 0.25, mouthUpperUpRight: 0.15, jawForward: 0.35, mouthRollLower: 0.25, eyesLookDown: 0.0
+  },
+  sad: {
+    browInnerUp: 1.0, browDownLeft: 0.2, browDownRight: 0.2,
+    mouthFrownLeft: 0.7, mouthFrownRight: 0.7, mouthShrugLower: 0.45, mouthRollLower: 0.3,
+    eyeSquintLeft: 0.25, eyeSquintRight: 0.25, eyeBlinkLeft: 0.28, eyeBlinkRight: 0.28, eyesLookDown: 0.45
+  },
+  withdrawn: {
+    browInnerUp: 0.5, mouthFrownLeft: 0.3, mouthFrownRight: 0.3,
+    eyeBlinkLeft: 0.3, eyeBlinkRight: 0.3, eyesLookDown: 0.45, mouthClose: 0.0
+  },
+  dismissive: {
+    // asymmetric smirk, half-lidded, one brow up
+    mouthSmileLeft: 0.2, mouthFrownRight: 0.5, mouthLeft: 0.25, mouthShrugUpper: 0.35,
+    browOuterUpLeft: 0.6, browDownRight: 0.35,
+    eyeBlinkLeft: 0.42, eyeBlinkRight: 0.4, noseSneerLeft: 0.4, eyesLookDown: 0.0
+  },
+  relieved: {
+    mouthSmile: 0.5, mouthSmileLeft: 0.5, mouthSmileRight: 0.45,
+    cheekSquintLeft: 0.35, cheekSquintRight: 0.35, eyeSquintLeft: 0.2, eyeSquintRight: 0.2,
+    browInnerUp: 0.15, browDownLeft: 0.1, browDownRight: 0.1, eyeBlinkLeft: 0.12, eyeBlinkRight: 0.12, eyesLookDown: 0.1
+  }
+};
+
+// Micro-expressions: tiny random facial flickers while idle (morph -> max amplitude at intensity 1).
+export const MICRO = {
+  neutral:    { browInnerUp: 0.2, mouthLeft: 0.15, mouthRight: 0.15, eyeSquintLeft: 0.15, eyeSquintRight: 0.15 },
+  tense:      { mouthPressLeft: 0.4, mouthPressRight: 0.4, mouthRollLower: 0.35, browInnerUp: 0.3, jawLeft: 0.15, jawRight: 0.15 },
+  anxious:    { mouthStretchLeft: 0.4, mouthStretchRight: 0.4, browInnerUp: 0.3, mouthRollLower: 0.4, mouthPucker: 0.2 },
+  angry:      { noseSneerLeft: 0.4, noseSneerRight: 0.4, mouthPressLeft: 0.3, mouthPressRight: 0.3, jawForward: 0.2, mouthUpperUpLeft: 0.3 },
+  sad:        { mouthRollLower: 0.4, browInnerUp: 0.25, mouthFrownLeft: 0.2, mouthFrownRight: 0.2, mouthPucker: 0.15 },
+  withdrawn:  { mouthRollLower: 0.3, mouthRollUpper: 0.2, browInnerUp: 0.15 },
+  dismissive: { mouthLeft: 0.3, noseSneerLeft: 0.3, browOuterUpLeft: 0.25, mouthShrugUpper: 0.25 },
+  relieved:   { mouthSmileLeft: 0.2, mouthSmileRight: 0.2, browInnerUp: 0.15, mouthRollLower: 0.15 }
+};
+
+// Body: euler DELTAS added on top of the seated pose at intensity 1 (posture / lean / shoulders).
+export const BODY_DELTAS = {
+  neutral: {},
+  tense: {
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.22 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: -0.22 },
+    'Spine2.rotation': { x: -0.06, y: 0, z: 0 },
+    'Neck.rotation':   { x: -0.05, y: 0, z: 0 }
+  },
+  anxious: {
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.3 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: -0.3 },
+    'Spine.rotation':  { x: 0.08, y: 0, z: 0 },
+    'Spine1.rotation': { x: 0.08, y: 0, z: 0 },
+    'Spine2.rotation': { x: 0.06, y: 0, z: 0 },
+    'Neck.rotation':   { x: 0.08, y: 0, z: 0 }
+  },
+  angry: {
+    // lean forward, chin down, shoulders squared and a bit raised
+    'Spine.rotation':  { x: 0.10, y: 0, z: 0 },
+    'Spine1.rotation': { x: 0.10, y: 0, z: 0 },
+    'Spine2.rotation': { x: 0.05, y: 0, z: 0 },
+    'Neck.rotation':   { x: 0.10, y: 0, z: 0 },
+    'Head.rotation':   { x: 0.10, y: 0, z: 0 },
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.14 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: -0.14 }
+  },
+  sad: {
+    'Spine.rotation':  { x: 0.16, y: 0, z: 0 },
+    'Spine1.rotation': { x: 0.14, y: 0, z: 0 },
+    'Spine2.rotation': { x: 0.12, y: 0, z: 0 },
+    'Neck.rotation':   { x: 0.22, y: 0, z: 0 },
+    'Head.rotation':   { x: 0.14, y: 0, z: 0.04 },
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: -0.10 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: 0.10 }
+  },
+  withdrawn: {
+    'Spine.rotation':  { x: 0.12, y: 0, z: 0 },
+    'Spine1.rotation': { x: 0.10, y: 0, z: 0 },
+    'Spine2.rotation': { x: 0.10, y: 0, z: 0 },
+    'Neck.rotation':   { x: 0.18, y: 0, z: 0 },
+    'Head.rotation':   { x: 0.12, y: 0, z: 0 },
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: -0.06 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: 0.06 }
+  },
+  dismissive: {
+    // lean back, head tilted and slightly back
+    'Spine.rotation':  { x: -0.12, y: 0, z: 0.05 },
+    'Spine1.rotation': { x: -0.08, y: 0, z: 0.04 },
+    'Neck.rotation':   { x: -0.05, y: 0, z: 0.08 },
+    'Head.rotation':   { x: -0.08, y: 0.10, z: 0.12 },
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: -0.04 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: 0.04 }
+  },
+  relieved: {
+    'Spine.rotation':  { x: -0.03, y: 0, z: 0 },
+    'Spine2.rotation': { x: 0.06, y: 0, z: 0 },
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: -0.12 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: 0.12 },
+    'Head.rotation': { x: -0.04, y: 0, z: 0.06 }
+  }
+};
+
+// ---------------------------------------------------------------------------------------------
+// Behaviour profiles: how the patient MOVES for each emotion. All values 0..1 unless noted.
+// These are the knobs for "body language"; setAffect({behavior:{...}}) and the debug sliders
+// override them live.
+//   fidget      hands / fingers / forearms keep busy (wringing, picking at fingers)
+//   footTap     toe tapping bursts
+//   legBounce   knee bouncing bursts
+//   shift       postural shifts (lean, weight change), how often and how big
+//   lookAround  how often the patient looks around the room instead of at the student
+//   gazeStudent probability to keep eye contact (0 = avoids, 1 = stares)
+//   blink       blink rate multiplier (1 = normal, ~1 blink / 4 s)
+//   breath      breathing rate multiplier (1 = normal)
+//   headMotion  amount of small idle head movement
+//   arms        'rest' | 'clasped' | 'crossed'
+// ---------------------------------------------------------------------------------------------
+export const BEHAVIOR = {
+  neutral:    { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.80, blink: 1.0, breath: 1.0, headMotion: 0.5, arms: 'rest' },
+  tense:      { fidget: 0.55, footTap: 0.30, legBounce: 0.15, shift: 0.40, lookAround: 0.25, gazeStudent: 0.45, blink: 1.6, breath: 1.3, headMotion: 0.5, arms: 'clasped' },
+  anxious:    { fidget: 0.95, footTap: 0.20, legBounce: 0.70, shift: 0.60, lookAround: 0.65, gazeStudent: 0.30, blink: 2.0, breath: 1.7, headMotion: 0.8, arms: 'clasped' },
+  angry:      { fidget: 0.15, footTap: 0.55, legBounce: 0.10, shift: 0.20, lookAround: 0.05, gazeStudent: 0.95, blink: 0.5, breath: 1.4, headMotion: 0.3, arms: 'crossed' },
+  sad:        { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.15, blink: 1.2, breath: 0.8, headMotion: 0.2, arms: 'rest' },
+  withdrawn:  { fidget: 0.15, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.10, blink: 1.0, breath: 0.85, headMotion: 0.15, arms: 'clasped' },
+  dismissive: { fidget: 0.20, footTap: 0.25, legBounce: 0.00, shift: 0.45, lookAround: 0.60, gazeStudent: 0.35, blink: 0.8, breath: 0.95, headMotion: 0.6, arms: 'crossed' },
+  relieved:   { fidget: 0.05, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.90, blink: 0.9, breath: 0.85, headMotion: 0.5, arms: 'rest' }
+};
