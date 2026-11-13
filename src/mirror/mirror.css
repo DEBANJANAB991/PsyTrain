@@ -1,0 +1,187 @@
+/* MIRROR integration layer. Only active when mirror/index.js is loaded (default; ?mirror=0 disables it).
+   Visual language follows the existing PsyTrain debug panel (index.html). */
+
+#mirror-root { position: relative; width: 100%; }
+.mirror-consult { position: relative; width: 100%; height: 100vh; height: 100dvh; }
+
+/* the consultation screen: the existing page, full viewport (MIRROR adds no gesture handling, so the canvas
+   keeps every mouse, touch and wheel event for PsyTrain's camera controls) */
+.mirror-slide { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+/* existing consult.html elements, moved into the consultation screen: same placement, relative to it */
+.mirror-slide-avatar > #app { position: absolute; inset: 0; }
+.mirror-slide-avatar > #status,
+.mirror-slide-avatar > #back,
+.mirror-slide-avatar > #talkbar,
+.mirror-slide-avatar > #debug { position: absolute; }
+
+/* page scrolling is enabled only once the feedback section exists */
+html.mirror-scroll { overflow-x: hidden; overflow-y: auto; height: auto; }
+html.mirror-scroll body { overflow: visible; height: auto; }
+
+/* ---- shared controls ---- */
+#mirror-root h1 { margin: 0 0 6px; font-size: 26px; font-weight: 600; }
+#mirror-root h2 { margin: 18px 0 6px; font-size: 13px; font-weight: 600; opacity: .7; text-transform: uppercase; letter-spacing: .04em; }
+.mirror-eyebrow { margin: 0; font-size: 12px; opacity: .65; text-transform: uppercase; letter-spacing: .06em; }
+.mirror-muted { font-size: 12px; opacity: .75; margin: 6px 0; }
+.mirror-error { font-size: 13px; color: #ff9b8f; margin: 8px 0; }
+.mirror-mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
+.mirror-label { display: block; font-size: 12px; opacity: .85; margin: 14px 0 4px; }
+.mirror-control { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid #3a3f47; border-radius: 6px; background: #22262c; color: inherit; font: inherit; font-size: 13px; }
+.mirror-btn { padding: 7px 12px; border: 1px solid #3a3f47; border-radius: 6px; background: #22262c; color: inherit; cursor: pointer; font: inherit; font-size: 13px; white-space: nowrap; }
+.mirror-btn:hover:not(:disabled) { border-color: #5a616b; }
+.mirror-btn:disabled { opacity: .5; cursor: default; }
+.mirror-btn-primary { background: #3b6df0; border-color: #3b6df0; color: #fff; }
+.mirror-link { padding: 0; border: 0; background: none; color: #8fb0ff; cursor: pointer; font: inherit; font-size: 13px; }
+.mirror-btn:focus-visible, .mirror-link:focus-visible, .mirror-control:focus-visible, .mirror-edge:focus-visible { outline: 2px solid #8fb0ff; outline-offset: 2px; }
+
+/* ---- the one MIRROR control on the avatar screen: bottom-right pill, styled like PsyTrain's #back ----
+   PsyTrain's talk dock (#talkbar, incl. the VR button) is top-right and #back/#status top-left, so the
+   bottom-right corner is free; left of the ?debug=1 panel when it is shown */
+.mirror-edge { position: absolute; z-index: 15; right: 16px; bottom: 16px; padding: 10px 18px; border: 0; border-radius: 999px;
+  background: rgba(20,22,26,.72); backdrop-filter: blur(6px); color: inherit; cursor: pointer; font: 600 13px system-ui, sans-serif; }
+.mirror-edge:hover { background: rgba(20,22,26,.9); }
+#debug:not([hidden]) ~ .mirror-edge { right: 290px; }
+.mirror-edge:disabled { opacity: .6; cursor: default; }
+/* short message just above End session (e.g. no MIRROR case configured); does not cover the patient */
+.mirror-notice { position: absolute; z-index: 15; right: 16px; bottom: 64px; max-width: min(360px, calc(100% - 32px)); margin: 0;
+  padding: 8px 12px; border-radius: 10px; background: rgba(20,22,26,.85); backdrop-filter: blur(6px); font-size: 13px; line-height: 1.4; }
+.mirror-notice[hidden] { display: none; }
+#debug:not([hidden]) ~ .mirror-notice { right: 290px; }
+
+.mirror-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #3a3f47; border-top-color: #8fb0ff; border-radius: 50%; animation: mirror-spin .8s linear infinite; }
+.mirror-spinner[hidden] { display: none; }
+@keyframes mirror-spin { to { transform: rotate(360deg); } }
+
+/* ---- feedback section (directly below the consultation) ---- */
+.mirror-feedback { position: relative; min-height: 100vh; min-height: 100dvh; background: #14161a; color: #e8eaed; }
+.mirror-feedback[hidden] { display: none; }
+.mirror-feedback-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  background: rgba(20,22,26,.94); backdrop-filter: blur(6px); border-bottom: 1px solid #2c3037; }
+.mirror-fb-panel[hidden], .mirror-fb-content[hidden] { display: none; }
+.mirror-fb-message { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 80px 20px; text-align: center; }
+
+/* native rendering of the saved MIRROR assessment (src/mirror/feedback.js) */
+.fb { box-sizing: border-box; width: min(1100px, 100%); margin: 0 auto; padding: 28px 20px 80px; font-size: 14px; line-height: 1.5; }
+.fb h1 { margin: 4px 0 12px; font-size: 28px; font-weight: 600; }
+.fb h2 { margin: 2px 0 6px; font-size: 21px; font-weight: 600; }
+.fb h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.fb p { margin: 6px 0; }
+.fb-eyebrow { margin: 0; font-size: 12px; opacity: .65; text-transform: uppercase; letter-spacing: .06em; }
+.fb-index { display: inline-block; margin-right: 8px; color: #8fb0ff; }
+.fb-detail, .fb-small, .fb-empty { font-size: 12.5px; opacity: .78; }
+.fb-empty { font-style: italic; }
+.fb-mono, .fb code { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; word-break: break-all; }
+.fb-meta { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0 0 12px; font-size: 13px; }
+.fb-meta dt { opacity: .6; }
+.fb-meta dd { margin: 0; }
+.fb-note { padding: 8px 10px; border-left: 3px solid #d9a441; background: #22262c; border-radius: 4px; font-size: 12.5px; }
+.fb-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.fb-metric { padding: 12px 14px; border: 1px solid #2c3037; border-radius: 10px; background: #1b1e23; }
+.fb-metric p { margin: 0; font-size: 12px; opacity: .7; }
+.fb-metric strong { display: block; margin: 4px 0 2px; font-size: 19px; font-weight: 600; }
+.fb-metric span { font-size: 11.5px; opacity: .65; }
+.fb-section { margin-top: 34px; padding-top: 22px; border-top: 1px solid #2c3037; }
+.fb-summary { font-size: 15px; }
+.fb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.fb-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fb-card { padding: 14px 16px; border: 1px solid #2c3037; border-radius: 10px; background: #1b1e23; min-width: 0; }
+.fb-good { border-color: #2f5a44; }
+.fb-improve { border-color: #6a5432; }
+.fb-coach { border-color: #34467a; }
+.fb-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.fb-kicker { display: block; font-size: 11px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
+.fb-count { font-size: 20px; font-weight: 600; opacity: .8; }
+.fb-pill { flex: none; padding: 3px 8px; border-radius: 99px; font-size: 11px; text-transform: capitalize; background: #2a2f37; color: #c9ced6; }
+.fb-positive, .fb-observed, .fb-assessed { background: #1f3b2c; color: #9fdcb7; }
+.fb-improvement, .fb-opportunity, .fb-partially_assessed { background: #3d3020; color: #f0c78a; }
+.fb-insufficient_evidence, .fb-not_assessable, .fb-not_assessed { background: #2a2f37; color: #aab1bb; }
+.fb-bar { height: 6px; margin: 8px 0 4px; border-radius: 99px; background: #2a2f37; overflow: hidden; }
+.fb-bar span { display: block; height: 100%; background: #3b6df0; }
+.fb-list { margin: 6px 0 0; padding-left: 18px; }
+.fb-list li { margin: 6px 0; }
+.fb-fact { padding: 8px 0; border-top: 1px solid #2c3037; }
+.fb-fact:first-of-type { border-top: 0; }
+.fb-fact small { display: block; font-size: 11.5px; opacity: .6; }
+.fb-evidence { margin-top: 6px; font-size: 12px; }
+.fb-evidence summary { cursor: pointer; color: #8fb0ff; }
+.fb-evidence ul { margin: 6px 0 0; padding-left: 16px; }
+.fb-evidence li { margin: 4px 0; opacity: .9; }
+.fb-sources { margin-top: 14px; }
+.fb a { color: #8fb0ff; }
+.fb blockquote { margin: 8px 0; padding: 6px 10px; border-left: 3px solid #3b6df0; background: #22262c; border-radius: 4px; font-style: italic; }
+.fb-framework { margin-top: 18px; }
+.fb-timeline { list-style: none; margin: 12px 0 0; padding: 0; }
+.fb-moment { margin: 8px 0; padding: 10px 14px; border: 1px solid #2c3037; border-radius: 10px; background: #1b1e23; }
+.fb-moment.fb-doctor { border-left: 3px solid #3b6df0; }
+.fb-moment.fb-patient { border-left: 3px solid #6c9b80; }
+.fb-moment.fb-event { background: transparent; border-style: dashed; font-size: 12.5px; opacity: .85; }
+.fb-moment-meta { display: flex; justify-content: space-between; font-size: 11.5px; opacity: .65; }
+.fb-annotation { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: #22262c; }
+/* where communication issues started (transcript evidence) */
+.fb-issues { display: grid; gap: 12px; margin-top: 12px; }
+.fb-issue-turn { background: #2a2f37; color: #c9ced6; text-transform: none; }
+.fb-tline { margin: 6px 0; padding: 8px 12px; border-radius: 8px; border-left: 3px solid transparent; background: #1f2329; }
+.fb-tline-doctor { border-left-color: #3b6df0; }
+.fb-tline-patient { border-left-color: #6c9b80; }
+.fb-tline-start { background: #2b2620; border-left-color: #f0c78a; box-shadow: inset 0 0 0 1px #6a5432; }
+.fb-tline-meta { display: flex; gap: 10px; align-items: baseline; font-size: 11.5px; opacity: .75; }
+.fb-tline-meta time { margin-left: auto; }
+.fb-tline-role { font-style: italic; }
+.fb-tline p { margin: 3px 0 0; }
+.fb-issue-context > div { margin-top: 6px; }
+.fb-issue-unlocated { margin-top: 14px; }
+.fb-issue-unlocated li { margin: 4px 0; }
+
+/* temporary demo fallback (demo.js) */
+.fb-demo-banner { margin: 0 0 18px; padding: 10px 14px; border: 1px solid #d9a441; border-radius: 8px; background: #3d3020; color: #f0c78a;
+  font-weight: 700; font-size: 13px; letter-spacing: .03em; text-align: center; }
+.fb-demo-banner-small { margin: 8px 0 12px; padding: 6px 10px; font-size: 12px; }
+.fb-demo-tag { display: inline-block; margin: 4px 0 8px; padding: 2px 8px; border-radius: 99px; background: #3d3020; color: #f0c78a; font-size: 11px; font-weight: 600; letter-spacing: .03em; }
+.fb-demo-level { margin: 2px 0 6px; font-size: 12.5px; }
+
+/* transcript section: downloads + collapsible full conversation */
+.fb-downloads { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.fb-transcript > summary { cursor: pointer; color: #8fb0ff; font-size: 13px; margin: 6px 0; }
+
+/* strategy comparison: MIRROR contextual coaching block; progress table */
+.fb-contextual { margin-top: 18px; }
+.fb-contextual > h3 { margin: 0 0 8px; }
+.fb-progress { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 13px; }
+.fb-progress th, .fb-progress td { padding: 8px 10px; border-bottom: 1px solid #2c3037; text-align: left; }
+.fb-progress thead th { font-size: 12px; opacity: .7; font-weight: 600; }
+.fb-progress td.fb-up { color: #9fdcb7; font-weight: 600; }
+
+/* next steps (Try Again primary, Back to PsyTrain secondary) */
+.fb-next { text-align: center; }
+.fb-next .fb-detail { max-width: 560px; margin: 6px auto 0; }
+.fb-next-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 16px; }
+.fb-next-primary { padding: 12px 28px; font-size: 15px; font-weight: 600; }
+.fb-next-secondary { padding: 12px 22px; font-size: 15px; }
+
+/* personalised coaching (hints.json) */
+.fb-o-demonstrated { background: #1f3b2c; color: #9fdcb7; }
+.fb-o-partially_demonstrated { background: #3d3020; color: #f0c78a; }
+.fb-o-not_demonstrated { background: #3a2626; color: #f2a59c; }
+.fb-o-insufficient_evidence { background: #2a2f37; color: #aab1bb; }
+.fb-coaching-demonstrated { border-color: #2f5a44; }
+.fb-coaching-partially_demonstrated { border-color: #6a5432; }
+.fb-coaching-not_demonstrated { border-color: #6a3b36; }
+.fb-coach-evidence { margin: 8px 0; padding: 8px 10px; border-radius: 6px; background: #22262c; font-size: 12.5px; }
+.fb-coach-evidence ul { margin: 4px 0 0; padding-left: 16px; }
+.fb-coach-evidence li { margin: 3px 0; }
+.fb-coach-role { opacity: .7; }
+.fb-coach-hint { margin-top: 8px; }
+.fb-coach-long { margin-top: 8px; padding: 8px 10px; border-left: 3px solid #3b6df0; border-radius: 4px; background: #1f2329; font-size: 12.5px; line-height: 1.55; }
+.fb-coach-long p { margin: 4px 0 0; }
+.fb-coach-tips { margin-top: 18px; display: grid; gap: 12px; }
+.fb-coach-tips > h3 { margin: 0; }
+
+@media (max-width: 900px) {
+  .fb-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fb-grid, .fb-grid-3 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 700px) {
+  #debug:not([hidden]) ~ .mirror-edge { right: 12px; }
+}

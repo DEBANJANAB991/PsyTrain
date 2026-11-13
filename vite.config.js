@@ -9,8 +9,11 @@ export default defineConfig({
     host: true,
     port: 5173,
     // allow cloudflared / ngrok tunnel hostnames
-    allowedHosts: true
+    allowedHosts: true,
+    // MIRROR assessment backend (FastAPI), same-origin for the browser. Override: MIRROR_API_URL=http://host:port
+    proxy: { '/api/consultations': { target: process.env.MIRROR_API_URL || 'http://127.0.0.1:8000', changeOrigin: true } }
   },
+  preview: { proxy: { '/api/consultations': { target: process.env.MIRROR_API_URL || 'http://127.0.0.1:8000', changeOrigin: true } } },
   // only scan our own entry (a cloned ./TalkingHead repo may sit next to it)
   optimizeDeps: { entries: ['index.html', 'consult.html'] },
   // two pages: index.html = landing page (choose a patient), consult.html = the 3D consultation room
