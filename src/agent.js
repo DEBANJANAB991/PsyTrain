@@ -98,8 +98,8 @@ export function createAgent({ affect, personality }) {
 // ===================================================================================================
 
 /**
- * Claude (via /api/agent/step on the server, key stays there) decides which tools to call; they run here in the
- * browser, results go back to Claude, until it finishes. Without an Anthropic key a small rule-based director
+ * Claude (via /api/agent/step on the server, Amazon Bedrock or the Claude API; credentials stay there) decides which
+ * tools to call; they run here in the browser, results go back to Claude, until it finishes. Without credentials a small rule-based director
  * (offline) handles common phrasings so the whole path still works.
  */
 export class Director {
@@ -153,8 +153,8 @@ export class Director {
     }
     const ok = calls.filter((c) => c.result.ok).length;
     const text = calls.length
-      ? `Offline rules applied ${ok} of ${calls.length} actions (no Anthropic key, so this understands only simple phrases).`
-      : 'Offline rules found nothing to do. Try e.g. "an anxious patient who avoids eye contact" (an Anthropic key understands anything).';
+      ? `Offline rules applied ${ok} of ${calls.length} actions (no Bedrock or Anthropic credentials, so this understands only simple phrases).`
+      : 'Offline rules found nothing to do. Try e.g. "an anxious patient who avoids eye contact" (Claude via Bedrock or an Anthropic key understands anything).';
     return { mode: 'offline', text, calls };
   }
 }

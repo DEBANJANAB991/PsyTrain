@@ -11,6 +11,13 @@ npm install
 npm run dev          # http://localhost:5173  (Node 18+)
 ```
 
+The root URL opens the **landing page**: pick a patient and a behaviour, then **Enter consultation room** opens
+the 3D room (`/consult.html?case=extrovert&behavior=shy&patient=young-woman`). For now only the extrovert patient
+(the Avaturn young woman) is enabled, with two behaviours: **shy** and **aggressive**. The other patients show as
+"coming soon". Patients and behaviours are defined in `src/cases.js`. Each behaviour is a personality definition
+(Big Five traits, behaviour ranges, starting emotion, arm posture) that is registered with `Personality.define()`
+when the room loads. It changes face, posture, gaze and body language, not the voice.
+
 Desktop: drag to orbit around the patient. The panel on the right has 4 mood buttons, an intensity
 slider, 3 gaze buttons and a nod. All of them call `affect.setAffect(...)`.
 
@@ -33,7 +40,14 @@ entering, or drive it from the console / track B.
 |---|---|
 | `src/config.js` | **All tunable numbers**: room, seated pose, per-mood face + body deltas, gaze style |
 | `src/scene.js` | Renderer, lights, camera rig, VR button (reference space `local`, eye height 1.2 m) |
-| `src/room.js` | Procedural consultation room: window, furniture, wheelchair, canvas textures (no extra assets) |
+| `index.html`, `src/landing.js` | Landing page: choose a patient and a behaviour (no three.js loaded) |
+| `consult.html` | The 3D consultation room page (loads `src/main.js`) |
+| `src/cases.js` | Patients on the landing page and their behaviours (personality definitions) |
+| `src/photoroom.js` | Default room: a real 360° photo projected onto the floor (`GroundedSkybox`), lit by the same room's HDR, plus a real chair model |
+| `src/room.js` | Procedural consultation room (`/consult.html?room=procedural`): window, furniture, wheelchair, canvas textures |
+| `public/rooms/` | Poly Haven "Reading Room": 6K tonemapped photo (background) + 1K HDR (lighting). CC0 |
+| `public/models/dining_chair_02.glb` | Poly Haven "Dining Chair 02" (2K textures). CC0 |
+| `public/landing/` | Landing-page portraits (rendered from the app) and the hero image |
 | `src/patient.js` | Loads the avatar via TalkingHead `avatarOnly` mode into our scene |
 | `src/conditions.js` | Visible conditions painted into the avatar's textures: face paint / blood presets (`FACE_PAINT`), logo covers |
 | `src/affect.js` | `setAffect({emotion, intensity, gaze, gesture, behavior})` -> TalkingHead moods + pose + look-at |
@@ -46,6 +60,14 @@ entering, or drive it from the console / track B.
 
 Avatars are registered in `AVATARS` in `src/config.js` (URL, retarget, eyelid baseline, seat offset,
 eye-rotation range for the gaze code). Add an entry there to try another TalkingHead-compatible GLB.
+
+### Room
+
+The default room is a real place: Poly Haven's "Reading Room" 360° photo, projected onto a dome with a flat floor so
+the patient's chair stands on the photo's floor. Her shadow falls on an invisible `ShadowMaterial` floor. The
+settings are in `PHOTO_ROOM` in `src/config.js`. `backU` picks which part of the photo is behind the patient,
+and `cameraHeight` sets the floor scale. Add `?room=procedural` to get the modelled room back. A photo has no
+parallax, so in the headset the room looks right from the seat but does not shift if you lean far to the side.
 
 ### Patients
 
@@ -108,6 +130,46 @@ two frames, so below ~15 fps the mouth would lag the audio; on a normal laptop o
 
 For the full conversation (ElevenLabs Agents: speech in, LLM, speech out) the same two calls are the join point:
 stream the agent's audio + alignment into `head.streamAudio()` and map `set_affect` tool calls to `setAffect()`.
+
+## Agent control: personality, ranges, events, director
+
+Everything on the body-language panel can be driven by an agent. The control surface is defined once in
+`shared/agent-tools.js` (tool schemas in the Anthropic tool format) and executed by `src/agent.js`
+(`window.patient.agent.execute(name, args)`, errors come back as `{ok:false, error}` with the valid values so the agent can
+correct itself). `src/personality.js` is the layer behind it.
+
+| Tool | What it does |
+|---|---|
+| `get_state`, `list_options` | current state / every valid value (emotions, personalities, behaviors with ranges, events) |
+| `set_personality` | preset and/or Big Five traits (openness, conscientiousness, extraversion, agreeableness, neuroticism, 0..1), variability, start emotion |
+| `define_personality` | create and save a NEW named personality type (traits, ranges, variability, default emotion, arms) and activate it |
+| `set_behavior` | set fidget, footTap, legBounce, shift, lookAround, gazeStudent, blink, breath, headMotion, arms. Becomes the center; `exact: true` pins it |
+| `set_behavior_range` | min/max per behavior. The live value drifts and reacts only inside it (min = max freezes it; `null` resets) |
+| `set_affect` | emotion, intensity, gaze, gesture |
+| `trigger_event` | sensitive_question, reassurance, accusation, interruption, long_silence, good_news, bad_news, rapport_built: she reacts according to her personality, then settles back |
+
+How the numbers combine: emotion profile -> + traits -> + agent centers -> + event reactions (fade out) -> + slow drift
+(`variability` x range width) -> clamped to the ranges. Slider pins in the panel win over all of it.
+Presets: default, cooperative, anxious, guarded, hostile, depressed, talkative, evasive, distractible, stoic.
+Personalities an agent defines are kept in the browser (localStorage).
+
+**Director** (panel section "Director"): type what you want in plain language ("a guarded middle-aged man who avoids eye
+contact and gets angry when asked about alcohol"). Claude decides which tools to call (`server/agent.js`, low effort, with a
+safety-refusal fallback); the tools run in the browser and their results go back to Claude until it finishes. Two providers
+(see `.env.example`):
+
+- **Amazon Bedrock** (used automatically when AWS credentials are in `.env`): `@anthropic-ai/bedrock-sdk`
+  (`AnthropicBedrockMantle`, the `bedrock-mantle` Messages API endpoint), model `anthropic.claude-opus-5-5` (override with
+  `BEDROCK_MODEL`). Needs `AWS_REGION` or `AWS_DEFAULT_REGION` plus `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (and
+  `AWS_SESSION_TOKEN` for temporary credentials), `AWS_BEARER_TOKEN_BEDROCK`, or `AWS_PROFILE`. A declined request is
+  retried on `BEDROCK_FALLBACK_MODEL` (default `anthropic.claude-opus-4-8`) by the SDK's refusal-fallback middleware.
+- **Claude API**: `ANTHROPIC_API_KEY`, model `claude-opus-5-5` (override with `ANTHROPIC_MODEL`), server-side fallback.
+
+`AGENT_PROVIDER=bedrock|anthropic` forces one; `ANTHROPIC_FALLBACKS=off` disables the fallback for both. Without
+credentials a small offline rule set understands simple phrases. The endpoint is capped (12 requests per minute, size limits), as with the voice endpoint.
+
+**Other agents:** the ElevenLabs conversation agent can register the same tools as client tools (same names and
+parameters) and call `patient.agent.execute` from its handler. The schemas are plain JSON in `AGENT_TOOLS`.
 
 ## Body language (configurable)
 

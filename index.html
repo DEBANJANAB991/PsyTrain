@@ -3,27 +3,103 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Meet Your AI Patient</title>
+  <title>Meet Your AI Patient · Choose a patient</title>
+  <link rel="preload" as="image" href="/landing/room.jpg" />
   <style>
-    html, body { margin: 0; height: 100%; background: #14161a; color: #e8eaed; font-family: system-ui, sans-serif; overflow: hidden; }
-    #app { position: fixed; inset: 0; }
-    #app canvas { display: block; }
-    #status { position: fixed; left: 12px; top: 12px; font-size: 13px; opacity: .8; pointer-events: none; }
-    #debug { position: fixed; right: 12px; top: 12px; bottom: 12px; width: 250px; padding: 12px; border-radius: 10px; overflow-y: auto;
-             background: rgba(20,22,26,.88); backdrop-filter: blur(6px); display: flex; flex-direction: column; gap: 8px; }
-    #debug[hidden] { display: none; }
-    #debug h3 { margin: 6px 0 0; font-size: 12px; font-weight: 600; opacity: .7; text-transform: uppercase; letter-spacing: .04em; }
-    #debug button { padding: 6px 4px; border: 1px solid #3a3f47; border-radius: 6px; background: #22262c; color: inherit; cursor: pointer; font-size: 13px; }
-    #debug button.active { background: #3b6df0; border-color: #3b6df0; }
-    #debug label { font-size: 12px; opacity: .85; display: flex; flex-direction: column; gap: 2px; }
-    #debug label span { float: right; opacity: .6; }
-    #debug .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    :root {
+      --bg: #f4f2ee; --card: #ffffff; --ink: #1c2329; --muted: #5d6770; --line: #e2ded6;
+      --accent: #2c6e67; --accent-ink: #ffffff; --accent-soft: #e3efed; --radius: 14px;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { padding-bottom: 96px; }
+    a { color: inherit; }
+
+    header.hero { position: relative; min-height: 300px; display: flex; align-items: flex-end; color: #fff;
+                  background: #3b3a36 url('/landing/room.jpg') center 58% / cover no-repeat; }
+    header.hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(18,22,26,.15) 0%, rgba(18,22,26,.72) 100%); }
+    .hero-inner { position: relative; width: 100%; max-width: 1120px; margin: 0 auto; padding: 28px 24px 34px; }
+    .brand { position: absolute; top: 20px; left: 24px; display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: .01em; }
+    .brand i { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; font-style: normal; font-size: 16px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; font-weight: 700; }
+    .hero p { margin: 0; max-width: 620px; font-size: 16px; line-height: 1.5; opacity: .92; }
+
+    main { max-width: 1120px; margin: 0 auto; padding: 8px 24px 0; }
+    h2 { display: flex; align-items: baseline; gap: 10px; margin: 32px 0 14px; font-size: 19px; }
+    h2 .step { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 13px; }
+    h2 small { font-size: 14px; font-weight: 400; color: var(--muted); }
+
+    .patients { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .patient { position: relative; display: flex; flex-direction: column; padding: 0; border: 2px solid transparent; border-radius: var(--radius);
+               background: var(--card); color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden;
+               box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.05); transition: transform .15s, box-shadow .15s, border-color .15s; }
+    .patient:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 10px 24px rgba(0,0,0,.08); }
+    .patient:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .patient[aria-pressed="true"] { border-color: var(--accent); }
+    .patient .img { aspect-ratio: 4 / 5; background: #d9d5cd center 20% / cover no-repeat; display: grid; place-items: center; }
+    .patient .img svg { width: 46%; opacity: .45; }
+    .patient .txt { padding: 12px 14px 14px; }
+    .patient b { display: block; font-size: 16px; }
+    .patient span { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+    .patient .tick { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff;
+                     display: none; place-items: center; font-size: 15px; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+    .patient[aria-pressed="true"] .tick { display: grid; }
+    .patient:disabled { cursor: not-allowed; box-shadow: none; background: #ece9e3; }
+    .patient:disabled .img { filter: grayscale(1); opacity: .5; }
+    .patient:disabled b, .patient:disabled span { color: #8a9097; }
+    .badge { position: absolute; top: 10px; left: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(28,35,41,.78); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .03em; }
+
+    .behaviors { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .behaviors[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+    .behavior { position: relative; display: block; padding: 16px 18px 16px 50px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--card); cursor: pointer; }
+    .behavior input { position: absolute; left: 18px; top: 19px; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+    .behavior b { display: block; font-size: 16px; margin-bottom: 4px; }
+    .behavior span { display: block; font-size: 14px; line-height: 1.45; color: var(--muted); }
+    .behavior:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+    .behavior:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .hint { margin: 0; padding: 18px; border: 2px dashed var(--line); border-radius: var(--radius); color: var(--muted); font-size: 14px; }
+    .about { margin: 6px 0 14px; color: var(--muted); font-size: 14px; line-height: 1.5; max-width: 720px; }
+
+    footer.bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid var(--line); }
+    .bar-inner { max-width: 1120px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+    #summary { flex: 1; font-size: 14px; color: var(--muted); }
+    #summary b { color: var(--ink); }
+    #start { padding: 13px 22px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+    #start:disabled { background: #b9c4c2; cursor: not-allowed; }
+    #start:not(:disabled):hover { filter: brightness(1.08); }
+    #start:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+    .credit { margin: 40px 0 0; font-size: 12px; color: #8a9097; }
+    @media (prefers-reduced-motion: reduce) { .patient { transition: none; } }
   </style>
 </head>
 <body>
-  <div id="app"></div>
-  <div id="status">Loading patient…</div>
-  <div id="debug" hidden></div>
-  <script type="module" src="/src/main.js"></script>
+  <header class="hero">
+    <div class="brand"><i aria-hidden="true">✚</i> Meet Your AI Patient</div>
+    <div class="hero-inner">
+      <h1>Choose your patient</h1>
+      <p>Pick a patient and how they behave today, then step into the consultation room to practise taking a psychiatric history. Works on desktop and in Apple Vision Pro.</p>
+    </div>
+  </header>
+
+  <main>
+    <h2><span class="step">1</span> Patient</h2>
+    <div class="patients" id="patients" role="group" aria-label="Patients"></div>
+
+    <h2><span class="step">2</span> Behaviour <small id="bfor"></small></h2>
+    <p class="about" id="about" hidden></p>
+    <div id="behaviors"></div>
+
+    <p class="credit">Room photo “Reading Room” and chair model by Poly Haven (CC0). Patient avatar from the TalkingHead project, non-commercial use only.</p>
+  </main>
+
+  <footer class="bar">
+    <div class="bar-inner">
+      <div id="summary" aria-live="polite">Select a patient and a behaviour.</div>
+      <button id="start" disabled>Enter consultation room →</button>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/landing.js"></script>
 </body>
 </html>

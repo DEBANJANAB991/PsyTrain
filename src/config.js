@@ -18,6 +18,21 @@ export const LIGHTING = {
   hemisphere: 0.45
 };
 
+// Room style: 'photo' = a real room (360° photo, CC0 from Poly Haven) projected onto the floor, lit by the
+// same room's HDR; 'procedural' = the modelled room in room.js. Pick with ?room=procedural.
+export const ROOM_STYLE = new URLSearchParams(globalThis.location?.search ?? '').get('room') === 'procedural' ? 'procedural' : 'photo';
+export const PHOTO_ROOM = {
+  photo: '/rooms/reading_room_6k.jpg',   // tonemapped equirectangular photo (background)
+  hdr: '/rooms/reading_room_1k.hdr',     // same room as HDR, only used for lighting / reflections
+  cameraHeight: 1.45,  // height the photo was taken from (m); sets the scale of the projected floor
+  radius: 14,          // size of the projected dome (m); must enclose the student
+  backU: 0.68,         // horizontal position in the photo (0..1) that appears behind the patient
+  environment: 0.9,    // HDR image-based light on the patient
+  key: 1.4,            // soft directional light from the student's side (only shadow caster)
+  shadow: 0.38,        // darkness of the shadow on the photo floor
+  chair: { url: '/models/dining_chair_02.glb', seatTop: 0.483, z: -0.04 }   // seatTop = model's own seat height (m)
+};
+
 // Avatars. Pick one with ?avatar=<key> in the URL (default: avaturn).
 //   retarget   TalkingHead bone tweaks / scaling (same format as TalkingHead's siteconfig.js)
 //   baseline   per-avatar morph baseline (e.g. eyelid rest position)

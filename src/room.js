@@ -277,7 +277,7 @@ export function buildRoom(scene, renderer, patientZ, { seat = 'chair' } = {}) {
 // Manual wheelchair (rigid frame, 24" rear wheels, front casters, footrests). Local space of the
 // patient anchor: patient faces +z, seat centre at x = z = 0, seat surface at `seatHeight`.
 // =================================================================================================
-function buildWheelchair(parent, add, M, seatHeight) {
+export function buildWheelchair(parent, add, M, seatHeight) {
   const wc = new THREE.Group();
   wc.name = 'wheelchair';
   parent.add(wc);

@@ -11,6 +11,7 @@ export default defineConfig({
     allowedHosts: true
   },
   // only scan our own entry (a cloned ./TalkingHead repo may sit next to it)
-  optimizeDeps: { entries: ['index.html'] },
-  build: { target: 'es2022' }
+  optimizeDeps: { entries: ['index.html', 'consult.html'] },
+  // two pages: index.html = landing page (choose a patient), consult.html = the 3D consultation room
+  build: { target: 'es2022', rollupOptions: { input: { main: 'index.html', consult: 'consult.html' } } }
 });

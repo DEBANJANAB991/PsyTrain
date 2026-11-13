@@ -9,6 +9,7 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^1.1.2",
     "@anthropic-ai/sdk": "^1.8.0",
     "three": "0.186.0"
   },

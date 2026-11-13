@@ -27,7 +27,7 @@ const TRAIT_MAP = {
   shift:       { extraversion: 0.30, conscientiousness: -0.20, neuroticism: 0.15 },
   lookAround:  { openness: 0.25, neuroticism: 0.25, conscientiousness: -0.20, agreeableness: -0.05 },
   gazeStudent: { extraversion: 0.25, agreeableness: 0.15, neuroticism: -0.30 },
-  blink:       { neuroticism: 0.80 },
+  blink:       { neuroticism: 0.50 },
   breath:      { neuroticism: 0.40 },
   headMotion:  { extraversion: 0.35, openness: 0.15 }
 };
@@ -234,7 +234,11 @@ export class Personality {
         c = out[key] + off;
       }
       c += this.eventOffset(key);
-      const drift = noise((this.t / DRIFT_SECONDS[key]) * TAU, hash(key)) * this.variability * (r.max - r.min) / 2;
+      // keep the center far enough inside the range that the drift has room on both sides: a value that
+      // wants to sit above (or below) the range then wanders along its edge instead of being flattened onto it
+      const m = this.variability * (r.max - r.min) / 2;
+      c = clamp(c, r.min + m, r.max - m);
+      const drift = noise((this.t / DRIFT_SECONDS[key]) * TAU, hash(key)) * m;
       out[key] = clamp(c + drift, r.min, r.max);
     }
     out.arms = this.arms || out.arms;

@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ROOM, LIGHTING, PATIENT } from './config.js';
+import { ROOM, LIGHTING, PATIENT, ROOM_STYLE, PHOTO_ROOM } from './config.js';
 import { buildRoom } from './room.js';
+import { buildPhotoRoom } from './photoroom.js';
 
 /**
  * Virtual consultation room + camera rig.
@@ -43,14 +44,15 @@ export function createScene(container) {
   patientAnchor.position.set(0, 0, patientZ);
   scene.add(patientAnchor);
 
-  const { window: win, fitToPatient } = buildRoom(scene, renderer, patientZ, { seat: PATIENT.seat });
+  const photo = ROOM_STYLE === 'photo';
+  const built = photo
+    ? buildPhotoRoom(scene, renderer, patientZ, { seat: PATIENT.seat })
+    : buildRoom(scene, renderer, patientZ, { seat: PATIENT.seat });
+  const { fitToPatient } = built;
+  const roomReady = built.ready ?? Promise.resolve();
 
-  // Lights. Key = daylight through the window on the right wall, front-right of the patient's face
-  // (the only shadow caster). Ceiling panel = warm top light. Rim from behind separates hair from the
-  // wall. Hemisphere + environment map do the soft bounce.
   const L = LIGHTING;
-  const key = new THREE.DirectionalLight(0xfff6ee, L.key);
-  key.position.set(ROOM.width / 2 + 0.6, win.y + 0.9, win.z + 0.5);
+  const key = new THREE.DirectionalLight(0xfff6ee, photo ? PHOTO_ROOM.key : L.key);
   key.target.position.set(0, 1.0, patientZ);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -58,13 +60,25 @@ export function createScene(container) {
   key.shadow.bias = -0.0003;
   key.shadow.normalBias = 0.02;
   key.shadow.radius = 5;
-  const ceiling = new THREE.PointLight(0xffe6c8, L.ceiling, 0, 2);
-  ceiling.position.set(0, ROOM.height - 0.15, patientZ + 0.4);
-  const rim = new THREE.DirectionalLight(0xfff2e2, L.rim);
-  rim.position.set(-1.0, 2.4, patientZ - 2.2);
-  rim.target.position.set(0, 1.2, patientZ);
-  scene.add(key, key.target, ceiling, rim, rim.target);
-  scene.add(new THREE.HemisphereLight(0xf2f0ec, 0x7a6550, L.hemisphere));
+  scene.add(key, key.target);
+  if (photo) {
+    // The room's HDR does most of the lighting (set in photoroom.js). The key light adds a soft, shadow-casting
+    // top-front light so the face reads clearly and she casts a shadow onto the photo's floor.
+    key.position.copy(built.keyFrom).add(new THREE.Vector3(0, 0, patientZ));
+  } else {
+    // Key = daylight through the window on the right wall, front-right of the patient's face (the only
+    // shadow caster). Ceiling panel = warm top light. Rim from behind separates hair from the wall.
+    // Hemisphere + environment map do the soft bounce.
+    const win = built.window;
+    key.position.set(ROOM.width / 2 + 0.6, win.y + 0.9, win.z + 0.5);
+    const ceiling = new THREE.PointLight(0xffe6c8, L.ceiling, 0, 2);
+    ceiling.position.set(0, ROOM.height - 0.15, patientZ + 0.4);
+    const rim = new THREE.DirectionalLight(0xfff2e2, L.rim);
+    rim.position.set(-1.0, 2.4, patientZ - 2.2);
+    rim.target.position.set(0, 1.2, patientZ);
+    scene.add(ceiling, rim, rim.target);
+    scene.add(new THREE.HemisphereLight(0xf2f0ec, 0x7a6550, L.hemisphere));
+  }
 
   // Desktop camera: orbit around the patient's head for debugging
   const desktopPos = new THREE.Vector3(0, ROOM.eyeHeight, 0);
@@ -98,5 +112,5 @@ export function createScene(container) {
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
 
-  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient };
+  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient, roomReady };
 }

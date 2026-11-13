@@ -7,12 +7,15 @@ import { Voice } from './voice.js';
 import { Personality } from './personality.js';
 import { createAgent, Director } from './agent.js';
 import { createDebugPanel } from './debug.js';
+import { selectedCase } from './cases.js';
 import * as THREE from 'three';
 import * as cfg from './config.js';
 
 const status = document.getElementById('status');
 const app = document.getElementById('app');
-const { renderer, scene, camera, patientAnchor, controls, fitToPatient } = createScene(app);
+const { renderer, scene, camera, patientAnchor, controls, fitToPatient, roomReady } = createScene(app);
+// patient + behaviour chosen on the landing page (index.html), e.g. ?case=extrovert&behavior=shy
+const selection = selectedCase();
 
 let head = null, affect = null, body = null, gaze = null, voice = null, personality = null, agent = null, director = null;
 
@@ -35,9 +38,15 @@ let head = null, affect = null, body = null, gaze = null, voice = null, personal
     personality = new Personality(affect);
     agent = createAgent({ affect, personality });
     director = new Director(agent);
-    createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director });
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
+    if (selection) {
+      // registered as a custom personality, so it also shows in the debug panel and to the director agent
+      const name = personality.define({ name: `${selection.caseDef.key}_${selection.behaviorKey}`, ...selection.behavior.personality });
+      personality.setPreset(name, { applyEmotion: true });
+    }
+    createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director });
     affect.snapToPose();
+    await roomReady;
     fitToPatient(head);   // wheelchair footrests under her feet (no-op for the normal chair)
     status.textContent = 'Ready';
     setTimeout(() => (status.style.display = 'none'), 1500);

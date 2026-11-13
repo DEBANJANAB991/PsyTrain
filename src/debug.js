@@ -1,4 +1,5 @@
 import { EMOTIONS, GAZES, GESTURES, BEHAVIOR, PATIENTS, PATIENT_KEY } from './config.js';
+import { BEHAVIOR_META, BEHAVIOR_KEYS, TRAIT_NAMES, EVENT_NAMES } from '../shared/agent-tools.js';
 
 const SLIDERS = [
   ['fidget', 'Fidgeting (hands)', 0, 1, 0.05],
@@ -182,7 +183,7 @@ function addAgentSections(root, affect, { personality, agent, director }) {
 
   // director
   const dlog = q('#dlog');
-  director.checkStatus().then((st) => { q('#dstat').textContent = st.configured ? `Claude (${st.model})` : 'offline rules (no Anthropic key)'; });
+  director.checkStatus().then((st) => { q('#dstat').textContent = st.configured ? `Claude (${st.model}${st.provider === 'bedrock' ? ', Bedrock' : ''})` : 'offline rules (no Bedrock or Anthropic credentials)'; });
   q('#dgo').onclick = async () => {
     const text = q('#dtext').value.trim(); if (!text) return;
     const btn = q('#dgo'); btn.disabled = true; dlog.textContent = 'thinking…';
@@ -199,8 +200,9 @@ function addAgentSections(root, affect, { personality, agent, director }) {
 
   // keep the controls showing the current state
   function sync(full = false) {
-    if (full) fillPresets();
     const d = personality.describe();
+    if (full || presetSel.options.length !== personality.presetNames().length) fillPresets();
+    if (document.activeElement !== presetSel) presetSel.value = personality.presetNames().includes(d.personality.replace('*', '')) ? d.personality.replace('*', '') : presetSel.value;
     q('#pname').textContent = d.personality;
     q('#pdesc').textContent = d.description;
     for (const t of TRAIT_NAMES) { if (document.activeElement !== traitEls[t].inp) traitEls[t].inp.value = d.traits[t]; traitEls[t].span.textContent = d.traits[t].toFixed(2); }
