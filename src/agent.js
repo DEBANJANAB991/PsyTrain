@@ -325,10 +325,10 @@ export class LiveDirector {
 export function offlineState(patient, student = '') {
   const p = patient.toLowerCase(), s = student.toLowerCase();
   if (/\b(just answer|stop (talking|rambling)|why can'?t you|that'?s not what i asked|be serious)\b/.test(s)) return 'hesitant';
-  if (/\b(football|soccer|match|party|parties|phone|food|pizza|snack|by the way|anyway|where was i|that reminds me|did you hear|is that a|this room|picture|plant|window)\b/.test(p)) {
+  if (/\b(football|soccer|match|party|parties|phone|food|pizza|snack|by the way|anyway|where was i|that reminds me|speaking of|did i tell you|what was the question|did you hear|is that a|this room|picture|plant|window|wedding|bruno|trumpet|mallorca|group chat)\b/.test(p)) {
     return /\b(haha|funny|laugh|story|once|you should have seen)\b/.test(p) ? 'storytelling' : 'distracted';
   }
-  if (/\b(drink|drinking|beer|beers|lena|argue|argument|arguments|hangover|cut down)\b/.test(p)) return 'uneasy';
+  if (/\b(drink|drinking|beer|beers|jonas|lena|argue|argument|arguments|hangover|cut down)\b/.test(p)) return 'uneasy';
   if (/\b(i understand|that sounds|makes sense|thank you for|i hear you|that must be)\b/.test(s)) return 'at_ease';
   return 'engaged';
 }

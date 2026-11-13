@@ -58,6 +58,26 @@
     .behavior span { display: block; font-size: 14px; line-height: 1.45; color: var(--muted); }
     .behavior:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
     .behavior:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .behavior.off { cursor: not-allowed; background: #ece9e3; }
+    .behavior.off b, .behavior.off span { color: #8a9097; }
+    .behavior em { margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #dcd8d0; color: #5d6770; font-size: 11px; font-style: normal; font-weight: 600; vertical-align: 2px; }
+
+    .patients { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); max-width: 760px; }
+    .traits-card { background: var(--card); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.05); overflow-x: auto; }
+    .traits { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .traits th, .traits td { padding: 11px 16px; border-top: 1px solid var(--line); }
+    .traits thead th { border-top: 0; font-size: 13px; font-weight: 500; color: var(--muted); text-align: center; }
+    .traits tbody th { text-align: left; font-weight: 600; width: 34%; }
+    .traits td { text-align: center; }
+    .dot { display: inline-grid; place-items: center; cursor: pointer; position: relative; }
+    .dot input { position: absolute; opacity: 0; width: 22px; height: 22px; margin: 0; cursor: inherit; }
+    .dot span { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #9aa3ab; background: #fff; }
+    .dot input:checked + span { border-color: var(--accent); background: radial-gradient(var(--accent) 42%, #fff 47%); }
+    .dot input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .dot.off { cursor: not-allowed; }
+    .dot.off span { border-style: dashed; border-color: #cfcac1; background: transparent; }
+    .note { margin: 10px 2px 0; font-size: 13px; color: var(--muted); }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     .hint { margin: 0; padding: 18px; border: 2px dashed var(--line); border-radius: var(--radius); color: var(--muted); font-size: 14px; }
     .about { margin: 6px 0 14px; color: var(--muted); font-size: 14px; line-height: 1.5; max-width: 720px; }
 
@@ -78,7 +98,7 @@
     <div class="brand"><i aria-hidden="true">✚</i> Meet Your AI Patient</div>
     <div class="hero-inner">
       <h1>Choose your patient</h1>
-      <p>Pick a patient and how they behave today, then step into the consultation room to practise taking a psychiatric history. Works on desktop and in Apple Vision Pro.</p>
+      <p>Pick a patient, their personality and the difficult situation you want to train, then step into the consultation room to practise taking a psychiatric history. Works on desktop and in Apple Vision Pro.</p>
     </div>
   </header>
 
@@ -86,17 +106,20 @@
     <h2><span class="step">1</span> Patient</h2>
     <div class="patients" id="patients" role="group" aria-label="Patients"></div>
 
-    <h2><span class="step">2</span> Behaviour <small id="bfor"></small></h2>
-    <p class="about" id="about" hidden></p>
-    <div id="behaviors"></div>
+    <h2><span class="step">2</span> Personality <small>Big Five</small></h2>
+    <div class="traits-card"><table class="traits" id="traits"></table></div>
+    <p class="note">Only a more extraverted patient is modelled so far. The other traits stay average.</p>
+
+    <h2><span class="step">3</span> Difficult situation to train</h2>
+    <div class="behaviors" id="situations" role="radiogroup" aria-label="Difficult situation"></div>
 
     <p class="credit">Room photo “Reading Room” and chair model by Poly Haven (CC0). Patient avatar from the TalkingHead project, non-commercial use only.</p>
   </main>
 
   <footer class="bar">
     <div class="bar-inner">
-      <div id="summary" aria-live="polite">Select a patient and a behaviour.</div>
-      <button id="start" disabled>Enter consultation room →</button>
+      <div id="summary" aria-live="polite"></div>
+      <button id="start">Enter consultation room →</button>
     </div>
   </footer>
 

@@ -7,8 +7,12 @@ export function createTalkUI(root, { conversation, liveDirector, voice }) {
   root.innerHTML = `
     <div id="caption" aria-live="polite"></div>
     <button id="talk" disabled><span class="dot"></span><span class="label">Loading…</span></button>
-    <div id="talkstatus">Use headphones so she does not hear herself.</div>`;
+    <div id="talkstatus">Click the button and greet her: she waits for you to speak first.</div>
+    <label id="phones"><input type="checkbox"> I'm using headphones (lets me interrupt her)</label>`;
   const btn = root.querySelector('#talk'), label = root.querySelector('.label');
+  const phones = root.querySelector('#phones input');
+  phones.checked = conversation.headphones = localStorage.getItem('psytrain.headphones') === '1';
+  phones.onchange = () => { conversation.headphones = phones.checked; localStorage.setItem('psytrain.headphones', phones.checked ? '1' : '0'); render(); };
   const statusEl = root.querySelector('#talkstatus'), caption = root.querySelector('#caption');
   let available = false, errorText = '';
 
@@ -22,7 +26,8 @@ export function createTalkUI(root, { conversation, liveDirector, voice }) {
     label.textContent = s === 'idle' ? 'Talk to the patient' : s === 'connecting' ? 'Connecting…' : 'End conversation';
     if (errorText) statusEl.textContent = errorText;
     else if (s === 'connecting') statusEl.textContent = 'Allow the microphone if your browser asks.';
-    else if (s === 'live') statusEl.textContent = conversation.speaking ? 'She is speaking…' : 'Listening. Just talk to her.';
+    else if (s === 'live') statusEl.textContent = conversation.micMuted ? 'She is speaking… (your mic is paused until she finishes)'
+      : conversation.speaking ? 'She is speaking… (you can interrupt her)' : 'Listening. Just talk to her.';
   };
 
   (voice.status?.checked ? Promise.resolve(voice.status) : voice.checkStatus()).then((st) => {

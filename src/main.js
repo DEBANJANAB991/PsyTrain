@@ -9,15 +9,16 @@ import { createAgent, Director, LiveDirector } from './agent.js';
 import { LiveConversation } from './conversation.js';
 import { createDebugPanel } from './debug.js';
 import { createTalkUI } from './talk-ui.js';
-import { selectedCase } from './cases.js';
+import { selectedSession, sessionPersonality, sessionProfile } from './cases.js';
 import * as THREE from 'three';
 import * as cfg from './config.js';
 
 const status = document.getElementById('status');
 const app = document.getElementById('app');
 const { renderer, scene, camera, patientAnchor, controls, fitToPatient, roomReady } = createScene(app);
-// patient + behaviour chosen on the landing page (index.html), e.g. ?case=extrovert&behavior=shy
-const selection = selectedCase();
+// patient + Big Five + situation chosen on the landing page (index.html),
+// e.g. ?patient=young-woman&extraversion=high&situation=distracted
+const session = selectedSession();
 
 let head = null, affect = null, body = null, gaze = null, voice = null, personality = null, agent = null, director = null;
 let conversation = null, liveDirector = null;
@@ -42,14 +43,14 @@ let conversation = null, liveDirector = null;
     agent = createAgent({ affect, personality });
     director = new Director(agent);
     affect.setAffect({ emotion: 'neutral', intensity: 0.7, gaze: 'student' });
-    if (selection) {
+    if (session) {
       // registered as a custom personality, so it also shows in the debug panel and to the director agent
-      const name = personality.define({ name: `${selection.caseDef.key}_${selection.behaviorKey}`, ...selection.behavior.personality });
+      const name = personality.define(sessionPersonality(session));
       personality.setPreset(name, { applyEmotion: true });
     }
     // live voice conversation: the ElevenLabs patient agent talks, the live director moves her body to match
     conversation = new LiveConversation(head);
-    liveDirector = new LiveDirector(agent, director, { profile: selection?.behavior.profile || selection?.behavior.personality?.description || '' });
+    liveDirector = new LiveDirector(agent, director, { profile: session ? sessionProfile(session) : '' });
     conversation.on('student', (t) => liveDirector.addStudent(t));
     conversation.on('patient', (t) => liveDirector.addPatient(t));
     conversation.on('correction', (t) => liveDirector.correctPatient(t));
@@ -57,7 +58,7 @@ let conversation = null, liveDirector = null;
     conversation.on('status', (s) => { if (s === 'connecting') liveDirector.reset(); });
     // the page is just the room and a Talk button; the full control panel is at ?debug=1
     if (new URLSearchParams(location.search).has('debug')) {
-      createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director, conversation, liveDirector, liveFirst: Boolean(selection?.behavior.voiceAgent) });
+      createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director, conversation, liveDirector, liveFirst: true });
     } else {
       createTalkUI(document.getElementById('talkbar'), { conversation, liveDirector, voice });
     }

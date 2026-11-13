@@ -11,12 +11,17 @@ npm install
 npm run dev          # http://localhost:5173  (Node 18+)
 ```
 
-The root URL opens the **landing page**: pick a patient and a behaviour, then **Enter consultation room** opens
-the 3D room (`/consult.html?case=extrovert&behavior=shy&patient=young-woman`). For now only the extrovert patient
-(the Avaturn young woman) is enabled, with two behaviours: **shy** and **aggressive**. The other patients show as
-"coming soon". Patients and behaviours are defined in `src/cases.js`. Each behaviour is a personality definition
-(Big Five traits, behaviour ranges, starting emotion, arm posture) that is registered with `Personality.define()`
-when the room loads. It changes face, posture, gaze and body language, not the voice.
+The root URL opens the **landing page**, one page in three steps:
+1. **Patient**: woman, man, or man in a wheelchair.
+2. **Personality (Big Five)**: each trait lower than usual / average / higher than usual (trait values 0.2 / 0.5 / 0.85).
+   Only *extraversion: higher than usual* is modelled so far; the other traits are fixed at average.
+3. **Difficult situation to train**: *easily distracted* or *aggressive*.
+
+**Enter consultation room** opens the 3D room, e.g.
+`/consult.html?patient=young-woman&extraversion=high&situation=distracted` (traits missing from the URL are average).
+Everything is defined in `src/cases.js`: enable more trait levels in `AVAILABLE_LEVELS`, add situations to `SITUATIONS`.
+The traits plus the situation's body language (behaviour ranges, starting emotion, arm posture) are registered as a
+personality with `Personality.define()` when the room loads. They change face, posture, gaze and body language, not the voice.
 
 Desktop: drag to orbit around the patient. The panel on the right has 4 mood buttons, an intensity
 slider, 3 gaze buttons and a nod. All of them call `affect.setAffect(...)`.
@@ -40,9 +45,9 @@ entering, or drive it from the console / track B.
 |---|---|
 | `src/config.js` | **All tunable numbers**: room, seated pose, per-mood face + body deltas, gaze style |
 | `src/scene.js` | Renderer, lights, camera rig, VR button (reference space `local`, eye height 1.2 m) |
-| `index.html`, `src/landing.js` | Landing page: choose a patient and a behaviour (no three.js loaded) |
+| `index.html`, `src/landing.js` | Landing page: choose patient, Big Five and difficult situation (no three.js loaded) |
 | `consult.html` | The 3D consultation room page (loads `src/main.js`) |
-| `src/cases.js` | Patients on the landing page and their behaviours (personality definitions) |
+| `src/cases.js` | Landing-page options (patients, trait levels, situations) and the URL / personality they turn into |
 | `src/photoroom.js` | Default room: a real 360° photo projected onto the floor (`GroundedSkybox`), lit by the same room's HDR, plus a real chair model |
 | `src/room.js` | Procedural consultation room (`/consult.html?room=procedural`): window, furniture, wheelchair, canvas textures |
 | `public/rooms/` | Poly Haven "Reading Room": 6K tonemapped photo (background) + 1K HDR (lighting). CC0 |
@@ -169,16 +174,17 @@ safety-refusal fallback); the tools run in the browser and their results go back
 `AGENT_PROVIDER=bedrock|anthropic` forces one; `ANTHROPIC_FALLBACKS=off` disables the fallback for both. Without
 credentials a small offline rule set understands simple phrases. The endpoint is capped (12 requests per minute, size limits), as with the voice endpoint.
 
-**Live conversation** (landing page: young woman → "Talkative, easily distracted (live voice)", or the panel section
-"Live conversation" on any case): you talk to the patient by microphone. Two agents share the work:
+**Live conversation**: the consultation page shows only the room and a **Talk to the patient** button (the full
+control panel is at `&debug=1`). Click it and greet her; she waits for you to speak first. Two agents share the work:
 
-- The **ElevenLabs patient agent** from `ai-patient-voice/` (Mary Keller: prompt, voice, speech recognition,
+- The **ElevenLabs patient agent** from `ai-patient-voice/` (Julia Keller: prompt, voice, speech recognition,
   turn-taking) decides what she says and speaks it. `src/conversation.js` joins it over its WebSocket with a one-time
   signed URL from `/api/voice/agent-session` (the key stays on the server), sends 16 kHz microphone audio
   (`public/worklets/mic-worklet.js`) and plays her audio on the avatar with our lip-sync, using ElevenLabs'
   per-character timings.
 - The **live director** (`LiveDirector` in `src/agent.js`, Claude via `/api/agent/step` with `mode: "live"`) gets
-  the profile, the recent transcript and the latest exchange after every patient turn and puts her into a
+  the profile (`profile` of the situation in `src/cases.js`, plus the Big Five levels), the recent transcript and
+  the latest exchange after every patient turn and puts her into a
   conversation state with `set_state`: `engaged` (her baseline), `distracted`, `storytelling`, `uneasy`,
   `hesitant`, `at_ease` (bundles of emotion, gaze and behavior centers in `CONVERSATION_STATES`,
   `shared/agent-tools.js`). It can also add a gesture or an event. When she drifts into a tangent her body goes to
@@ -187,8 +193,12 @@ credentials a small offline rule set understands simple phrases. The endpoint is
 
 Setup: create the agent once with `python ai-patient-voice/create_agent.py` (see that folder's README; it uses the
 ElevenLabs key from this `.env` if its own `.env` has none). It saves `AGENT_ID` in `ai-patient-voice/.env`, which
-the server reads on each request; `ELEVENLABS_AGENT_ID` in this `.env` overrides it. Use headphones so she does not
-hear herself through the microphone.
+the server reads on each request; `ELEVENLABS_AGENT_ID` in this `.env` overrides it. After editing
+`ai-patient-voice/patient_prompt.txt` or `agent_config.py`, run `python ai-patient-voice/update_agent.py`.
+
+Echo: as in `talk.py`, the microphone sends silence while she speaks (plus 0.6 s), so her voice from the speakers is
+not taken as your turn; wait until she finishes. Tick "I'm using headphones" under the button to keep the mic open
+and be able to interrupt her (the choice is remembered in the browser).
 
 **Other agents:** the ElevenLabs conversation agent can register the same tools as client tools (same names and
 parameters) and call `patient.agent.execute` from its handler. The schemas are plain JSON in `AGENT_TOOLS`.

@@ -1,9 +1,10 @@
 import { buildLipsync } from './lipsync.js';
 // served from public/ as a real file: Vite would inline a small worklet as a data: URL, which some browsers refuse
 const micWorkletUrl = '/worklets/mic-worklet.js';
+const ECHO_TAIL_SECONDS = 0.6;
 
 /**
- * Live voice conversation with the ElevenLabs patient agent (ai-patient-voice/: Mary Keller's prompt, voice,
+ * Live voice conversation with the ElevenLabs patient agent (ai-patient-voice/: Julia Keller's prompt, voice,
  * speech recognition and turn-taking all live in that agent).
  *
  *   const conv = new LiveConversation(head);
@@ -24,7 +25,13 @@ export class LiveConversation {
     this.listeners = {};
     this.player = new StreamPlayer(head);
     this.state = 'idle';            // idle | connecting | live
+    // false (speakers): the mic sends silence while she speaks, so her voice is not heard as the student's turn;
+    // you cannot interrupt her then. true (headphones): the mic stays open. Same as ai-patient-voice/talk.py.
+    this.headphones = false;
   }
+
+  /** The mic is gated: she is speaking (or just stopped; covers the speaker buffer and room echo). */
+  get micMuted() { return !this.headphones && this.head.audioCtx.currentTime < this.player.next + ECHO_TAIL_SECONDS; }
 
   on(name, fn) { (this.listeners[name] ||= new Set()).add(fn); return () => this.listeners[name].delete(fn); }
   emit(name, data) { this.listeners[name]?.forEach((fn) => { try { fn(data); } catch (e) { console.error(e); } }); }
@@ -95,7 +102,11 @@ export class LiveConversation {
     if (!this.stream) return;                      // ended while loading
     this.micSource = ctx.createMediaStreamSource(this.stream);
     this.micNode = new AudioWorkletNode(ctx, 'psytrain-mic', { processorOptions: { targetRate: rate, chunkMs: 100 } });
-    this.micNode.port.onmessage = (e) => this._send({ user_audio_chunk: bytesToBase64(new Uint8Array(e.data)) });
+    // silence instead of dropping chunks, so the agent's audio stream stays continuous
+    this.micNode.port.onmessage = (e) => {
+      const bytes = this.micMuted ? new Uint8Array(e.data.byteLength) : new Uint8Array(e.data);
+      this._send({ user_audio_chunk: bytesToBase64(bytes) });
+    };
     // a silent sink keeps the worklet running without sending the microphone to the speakers
     this.micSink = ctx.createGain();
     this.micSink.gain.value = 0;
