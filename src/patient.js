@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { TalkingHead } from './vendor/talkinghead/talkinghead.mjs';
 import { AVATAR, PATIENT } from './config.js';
 import { applyFacePaint, coverLogos } from './conditions.js';
+import { precompile } from './precompile.js';
 
 /**
  * Loads the TalkingHead avatar in `avatarOnly` mode so it lives inside OUR three.js scene
  * (needed for WebXR). TalkingHead owns face + skeleton; nothing else writes to them.
+ * With `renderer`, her shaders are compiled before she is first drawn (see the end).
  */
-export async function createPatient({ scene, camera, anchor, onProgress }) {
+export async function createPatient({ renderer, scene, camera, anchor, onProgress }) {
   const holder = document.createElement('div'); // TalkingHead wants a node; unused in avatarOnly
   const head = new TalkingHead(holder, {
     avatarOnly: true,
@@ -46,6 +48,12 @@ export async function createPatient({ scene, camera, anchor, onProgress }) {
   head.armature.position.set(AVATAR.seatOffset.x, AVATAR.seatOffset.y, AVATAR.seatOffset.z);
   if (AVATAR.logoCovers) coverLogos(head, AVATAR.logoCovers);
   if (PATIENT.facePaint) applyFacePaint(head, PATIENT.facePaint);
+  if (renderer) {
+    // compiling her shaders on first use froze the page for about 3 s at the end of loading
+    head.armature.visible = false;
+    await precompile(renderer, head.armature, scene, camera);
+    head.armature.visible = true;
+  }
   return head;
 }
 

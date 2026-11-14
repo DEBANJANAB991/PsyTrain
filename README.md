@@ -65,7 +65,7 @@ entering, or drive it from the console / track B.
 | `src/affect.js` | `setAffect({emotion, intensity, gaze, gesture, behavior})` -> TalkingHead moods + pose + look-at |
 | `src/bodylang.js` | Procedural body language: fidgeting, foot tap, knee bounce, posture shifts, looking around, breathing, shrug |
 | `src/debug.js` | Debug panel |
-| `src/vendor/talkinghead/` | Vendored TalkingHead modules (MIT) with 2 small patches, marked `PSYTRAIN PATCH` |
+| `src/vendor/talkinghead/` | Vendored TalkingHead modules (MIT) with small patches, marked `PSYTRAIN PATCH` (see Vendor patches) |
 | `public/avatars/avaturn.glb` | Default avatar: photo-based Avaturn model (**non-commercial use only**, from the TalkingHead repo, 14 MB) |
 | `public/avatars/avatarsdk.glb` | Young man: AvatarSDK / MetaPerson model (**non-commercial use only**, from the TalkingHead repo, 12 MB). The printed shirt logo is hidden at load time |
 | `public/avatars/mpfb.glb` | Alternative avatar (CC0, from the TalkingHead repo, 4 MB). Open `/?avatar=mpfb` to use it |
@@ -293,11 +293,22 @@ knees -1.5 and feet 1.4 give vertical shins and flat feet.
 
 ## Vendor patches (why)
 
-1. `lipsyncGetProcessor`: static import paths so Vite can bundle the lip-sync modules.
+1. `lipsyncGetProcessor`: a static import path so Vite can bundle the English lip-sync module (the only one vendored).
 2. Extra delta bones (Spine2, shoulders, feet, toes) so `bodylang.js` can drive them per frame.
 3. `opt.hipFeetBalance`: TalkingHead re-centres the hips under the feet each frame assuming the avatar
    stands at the world origin. That drags a seated avatar placed in a room off its chair, so we switch it
    off (`hipFeetBalance: false`). It also saves a per-frame bounding-box pass over the skinned mesh.
+4. `DRACOLoader` and `FBXLoader` are imported only when used (Draco avatars, `playAnimation` / `playPose`).
+   PsyTrain uses neither, so they no longer load with the page.
+
+## Loading
+
+- `src/precompile.js` compiles the avatar's and the chair's shaders, including their shadow variants, before they
+  are first drawn. Compiling them on first use froze the page for about 3 s at the end of loading; with
+  `KHR_parallel_shader_compile` (Chrome, Safari) the browser now compiles them in the background.
+- `server/compress.js` sends `.glb` and `.hdr` files brotli- or gzip-compressed from the dev and preview servers
+  (Vite and the Cloudflare tunnel send them uncompressed). The default avatar drops from 13.8 MB to 7.6 MB
+  on the wire, byte-identical once decoded.
 
 ## Status
 

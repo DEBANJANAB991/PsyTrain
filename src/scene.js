@@ -30,8 +30,11 @@ export function createScene(container) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x20242a);
 
+  // RoomEnvironment lights the procedural room, and the photo room until its HDR has loaded
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const roomEnv = new RoomEnvironment();
+  scene.environment = pmrem.fromScene(roomEnv, 0.04).texture;
+  roomEnv.dispose();
   scene.environmentIntensity = LIGHTING.environment;
 
   const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.05, 50);
@@ -46,8 +49,9 @@ export function createScene(container) {
 
   const photo = ROOM_STYLE === 'photo';
   const built = photo
-    ? buildPhotoRoom(scene, renderer, patientZ, { seat: PATIENT.seat })
+    ? buildPhotoRoom(scene, renderer, patientZ, { seat: PATIENT.seat, pmrem })   // reuses and then disposes it
     : buildRoom(scene, renderer, patientZ, { seat: PATIENT.seat });
+  if (!photo) pmrem.dispose();
   const { fitToPatient } = built;
   const roomReady = built.ready ?? Promise.resolve();
 

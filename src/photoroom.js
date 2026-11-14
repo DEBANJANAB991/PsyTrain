@@ -4,6 +4,7 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROOM, PHOTO_ROOM } from './config.js';
 import { buildWheelchair } from './room.js';
+import { precompile } from './precompile.js';
 
 /**
  * A real room instead of the modelled one: a 360° photo of a room (Poly Haven, CC0; PHOTO_ROOMS in config.js)
@@ -18,7 +19,7 @@ import { buildWheelchair } from './room.js';
  * Returns the same shape as buildRoom() plus `ready`, a promise that resolves when the photo, HDR and chair
  * are loaded.
  */
-export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair' } = {}) {
+export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair', pmrem = new THREE.PMREMGenerator(renderer) } = {}) {
   const P = PHOTO_ROOM;
   const room = new THREE.Group();
   room.name = 'photo-room';
@@ -74,10 +75,11 @@ export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair' } = {
 
   const light = new HDRLoader().loadAsync(P.hdr).then((hdr) => {
     hdr.mapping = THREE.EquirectangularReflectionMapping;
-    const pmrem = new THREE.PMREMGenerator(renderer);
     const env = pmrem.fromEquirectangular(hdr).texture;
     hdr.dispose(); pmrem.dispose();
+    const placeholder = scene.environment;   // scene.js's RoomEnvironment, a PMREM render target
     scene.environment = env;
+    (placeholder?.renderTarget ?? placeholder)?.dispose();
     scene.environmentIntensity = P.environment;
     // match the photo's turn so the light comes from where the windows are in the picture
     scene.environmentRotation.y = 2 * Math.PI * (P.backU - 0.25);
@@ -105,7 +107,7 @@ export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair' } = {
         }
       }
     });
-    chair.add(m);
+    return precompile(renderer, m, scene).then(() => chair.add(m));
   });
 
   const ready = Promise.all([photo, light, chairModel]).catch((e) => {

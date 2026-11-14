@@ -9,7 +9,6 @@ import { Personality } from './personality.js';
 import { createAgent, Director, LiveDirector } from './agent.js';
 import { LiveConversation } from './conversation.js';
 import { ModeWatcher } from './orchestrator-client.js';
-import { createDebugPanel } from './debug.js';
 import { createTalkUI } from './talk-ui.js';
 import { createSkidPanel } from './skid.js';
 import { selectedSession, sessionPersona, sessionPersonality, sessionProfile } from './cases.js';
@@ -87,13 +86,13 @@ let conversation = null, liveDirector = null, modeWatcher = null, hints = null, 
 (async () => {
   try {
     head = await createPatient({
-      scene, camera, anchor: patientAnchor,
+      renderer, scene, camera, anchor: patientAnchor,
       onProgress: (e) => { if (e?.lengthComputable) status.textContent = `Loading patient… ${Math.round((e.loaded / e.total) * 100)}%`; }
     });
     affect = new Affect(head);
     body = new BodyLanguage(head, affect);
     contacts = new Contacts(head, affect);
-    if (new URLSearchParams(location.search).has('nocontacts')) contacts.enabled = false;
+    if (params.has('nocontacts')) contacts.enabled = false;
     // the student = the camera (desktop) or the headset (XR): she looks at where you really are
     gaze = new Gaze(head, affect, (v) => {
       const c = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
@@ -142,6 +141,7 @@ let conversation = null, liveDirector = null, modeWatcher = null, hints = null, 
       who: persona ? { name: persona.name, firstName: persona.first_name || persona.name } : null
     });
     if (DEBUG) {
+      const { createDebugPanel } = await import('./debug.js');
       createDebugPanel(document.getElementById('debug'), affect, voice, { personality, agent, director, conversation, liveDirector, modeWatcher, liveFirst: true, talkButton: false });
     }
     affect.snapToPose();

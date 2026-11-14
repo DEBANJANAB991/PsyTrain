@@ -25,9 +25,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+// PSYTRAIN PATCH: DRACOLoader and FBXLoader are imported where they are used (showAvatar with dracoEnabled,
+// playAnimation / playPose). PsyTrain uses neither, so they no longer load with the page.
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import Stats from 'three/addons/libs/stats.module.js';
 
@@ -1237,6 +1237,7 @@ class TalkingHead {
 
     // Check if draco loading enabled
     if ( this.dracoEnabled ) {
+      const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js');
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath( this.dracoDecoderPath );
       loader.setDRACOLoader( dracoLoader );
@@ -2824,11 +2825,9 @@ class TalkingHead {
     if ( !this.lipsync.hasOwnProperty(lang) ) {
       const moduleName = path + 'lipsync-' + lang.toLowerCase() + '.mjs';
       const className = 'Lipsync' + lang.charAt(0).toUpperCase() + lang.slice(1);
-      // PSYTRAIN PATCH: static import paths so Vite can bundle the modules.
+      // PSYTRAIN PATCH: a static import path so Vite can bundle the module. Only English is vendored.
       const loaders = {
-        en: () => import('./lipsync-en.mjs'),
-        de: () => import('./lipsync-de.mjs'),
-        fi: () => import('./lipsync-fi.mjs')
+        en: () => import('./lipsync-en.mjs')
       };
       const load = loaders[lang.toLowerCase()] || (() => import(/* @vite-ignore */ moduleName));
       load().then( module => {
@@ -4415,6 +4414,7 @@ class TalkingHead {
     } else {
 
       // Load animation
+      const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
       const loader = new FBXLoader();
 
       let fbx = await loader.loadAsync( url, onprogress );
@@ -4547,6 +4547,7 @@ class TalkingHead {
     } else {
 
       // Load animation
+      const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
       const loader = new FBXLoader();
 
       let fbx = await loader.loadAsync( url, onprogress );

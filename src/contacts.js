@@ -26,6 +26,8 @@ const _q = new THREE.Quaternion(), _dq = new THREE.Quaternion(), _loc = new THRE
 const _scale = new THREE.Vector3(), _I = new THREE.Quaternion();
 const _chain = new THREE.Quaternion(), _lean = new THREE.Quaternion(), _e = new THREE.Euler();
 const hit = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, sample: null, proxy: null };
+/** A thigh is in a hand's way unless the arms are crossed: its own thigh, or both thighs with clasped hands. */
+const usesThigh = (armMode, proxy, hand) => armMode !== 'crossed' && (armMode === 'clasped' || proxy.side === hand.side);
 
 export class Contacts {
   constructor(head, affect = null, { margin = 0.0015, releaseClear = 0.007, fall = 0.28 } = {}) {
@@ -222,6 +224,7 @@ export class Contacts {
     }
   }
 
+  /** Bilinear blend of the sampled bins around (axial, angle). Runs ~1000 times a frame, so it allocates nothing. */
   _surface(proxy, axial, angle) {
     const af = ((axial / proxy.len) + 0.1) / 1.2 * AXIAL_BINS - 0.5;
     const a0 = Math.floor(af), at = af - a0;
@@ -229,12 +232,13 @@ export class Contacts {
     const gf = ((angle + Math.PI) / TAU) * ANGLE_BINS - 0.5;
     const g0 = Math.floor(gf), gt = gf - g0;
     let sum = 0, weights = 0;
-    for (const [ai, aw] of [[a0, 1 - at], [a0 + 1, at]]) {
+    for (let da = 0; da < 2; da++) {
+      const ai = a0 + da, aw = da ? at : 1 - at;
       if (ai < 0 || ai >= AXIAL_BINS || aw <= 0) continue;
-      for (const [gi0, gw] of [[g0, 1 - gt], [g0 + 1, gt]]) {
+      for (let dg = 0; dg < 2; dg++) {
+        const gw = dg ? gt : 1 - gt;
         if (gw <= 0) continue;
-        const gi = (gi0 + ANGLE_BINS) % ANGLE_BINS;
-        const radius = proxy.table[ai * ANGLE_BINS + gi];
+        const radius = proxy.table[ai * ANGLE_BINS + (g0 + dg + ANGLE_BINS) % ANGLE_BINS];
         if (radius > 0) { const weight = aw * gw; sum += radius * weight; weights += weight; }
       }
     }
@@ -243,10 +247,9 @@ export class Contacts {
 
   _usesProxy(hand, proxy, mode) {
     if (proxy.kind === 'torso') return true;
-    const usesThigh = (armMode) => armMode !== 'crossed' && (armMode === 'clasped' || proxy.side === hand.side);
     // During a pose blend, protect both the old and new paths. This avoids a brief collision gap when
     // a rest/clasped hand is still beside a thigh on its way into the crossed pose.
-    return usesThigh(mode) || (this.transitionLeft > 0 && usesThigh(this.previousArmMode));
+    return usesThigh(mode, proxy, hand) || (this.transitionLeft > 0 && usesThigh(this.previousArmMode, proxy, hand));
   }
 
   /** Return deepest penetration; `hit` receives its point, normal, sample and body proxy. */
