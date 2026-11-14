@@ -1,0 +1,66 @@
+[
+  {
+    "student": "Hello, I'm Alex, a medical student. What brings you in today?",
+    "patient": "HR made me come. There was an incident at work and they said I had to do this or I'd get a formal warning. So. Here I am.",
+    "cue": {
+      "state": "guarded",
+      "gesture": "shrug",
+      "gaze": "away",
+      "mode": "normal",
+      "seq": 1,
+      "ms": 1514
+    },
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "aggressive",
+    "reason": "session start"
+  },
+  {
+    "student": "Okay, but you really need to calm down. It sounds like you might have some anger issues.",
+    "patient": "Wow. I've been here what, two minutes? And you've already got me figured out. That's impressive.",
+    "cue": {
+      "state": "hostile",
+      "gesture": null,
+      "gaze": "away",
+      "mode": "aggressive",
+      "seq": 2,
+      "ms": 2613
+    },
+    "mode": "aggressive",
+    "answerMode": "aggressive",
+    "behavior": "aggressive",
+    "reason": "Therapist used \"calm down\" and applied diagnostic label \"anger issues\" on first real exchange."
+  },
+  {
+    "student": "I can hear that you're frustrated, and that makes sense if you didn't choose to be here. You decide what we talk about first. Would that be okay?",
+    "patient": "Yeah, sure. Fine. I mean... I don't have a list ready or anything.",
+    "cue": {
+      "state": "guarded",
+      "gesture": "shrug",
+      "gaze": "away",
+      "mode": "normal",
+      "seq": 3,
+      "ms": 2522
+    },
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "aggressive",
+    "reason": "Therapist named his frustration without judging, gave him control, and explained why his resistance makes sense—strong de-escalation after first flare-up."
+  },
+  {
+    "student": "Thank you. Can you tell me what happened at work?",
+    "patient": "There was a thing on the night shift. A colleague made a mistake and I... lost my temper. That's what HR put in the report anyway.",
+    "cue": {
+      "state": "guarded",
+      "gesture": "shrug",
+      "gaze": "away",
+      "mode": "normal",
+      "seq": 4,
+      "ms": 1526
+    },
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "aggressive",
+    "reason": "Therapist named his frustration without judging, gave him control, and explained why his resistance makes sense—strong de-escalation after first flare-up."
+  }
+]

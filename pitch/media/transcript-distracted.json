@@ -1,0 +1,42 @@
+[
+  {
+    "student": "Hi Mary, I'm Alex, a medical student. Thanks for coming in. Is it okay if we talk for about fifteen minutes?",
+    "patient": "Oh, hi Alex! Yes, absolutely, fifteen minutes is great. Thanks for having me, I appreciate it.",
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "distracted",
+    "reason": "session start"
+  },
+  {
+    "student": "What brings you here today?",
+    "patient": "So, well, I've been a bit all over the place lately, you know? Like, losing focus at work, starting things and not finishing them. My partner Lena kind of nudged me to come, and I thought, yeah, maybe it's time to figure out what's going on.",
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "distracted",
+    "reason": "session start"
+  },
+  {
+    "student": "Tell me a bit more about your work and how the concentration problems show up there.",
+    "patient": "Oh, so I'm an event manager, which is already, like, a million things at once, you know? And lately it's just... my mind wanders in meetings, I'll be halfway through something and then just... oh, is that a plant in the corner there? Sorry, I love that, it's so nice to have plants in a therapy room, it makes it feel less clinical. My mum has this huge one in her hallway, she calls it Gerald.",
+    "mode": "distracted",
+    "answerMode": "distracted",
+    "behavior": "distracted",
+    "reason": "Open, broad question after 2 focused answers; natural moment to drift into anecdotes about work."
+  },
+  {
+    "student": "Mary, let me stop you there for a second. I notice we've drifted a bit. Coming back to concentration: how many weeks has this been going on?",
+    "patient": "Oh, right, sorry! Yeah, so, a few months I'd say. Maybe three, four months? It's been building up gradually, I think.",
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "distracted",
+    "reason": "Clear, calm intervention naming the tangent and redirecting to a specific question; should bring her back to normal."
+  },
+  {
+    "student": "And how have you been sleeping during that time?",
+    "patient": "Pretty okay, actually. I mean, sometimes I wake up a bit groggy, but nothing too dramatic, you know.",
+    "mode": "normal",
+    "answerMode": "normal",
+    "behavior": "distracted",
+    "reason": "Clear, calm intervention naming the tangent and redirecting to a specific question; should bring her back to normal."
+  }
+]

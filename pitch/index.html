@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Meet Your AI Patient · 3-minute pitch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --bg: #0f1216; --fg: #f2f4f7; --muted: #9aa4b2; --blue: #4f7df3; --red: #e0563f; --green: #4fbf7a; --card: #1a1f27; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--fg); font-family: Ubuntu, "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  #stage { position: absolute; width: 1920px; height: 1080px; left: 50%; top: 50%; transform-origin: 0 0; }
+  .slide { position: absolute; inset: 0; background: var(--bg); padding: 90px 120px; display: none; flex-direction: column; }
+  .slide.on { display: flex; }
+  h1 { font-size: 104px; margin: 0 0 24px; letter-spacing: -2px; line-height: 1.02; }
+  h2 { font-size: 64px; margin: 0 0 36px; letter-spacing: -1px; }
+  p, li { font-size: 38px; line-height: 1.4; color: #d9dee6; }
+  .kicker { font-size: 26px; text-transform: uppercase; letter-spacing: 4px; color: var(--blue); margin-bottom: 18px; font-weight: 700; }
+  .muted { color: var(--muted); }
+  .row { display: flex; gap: 48px; flex: 1; min-height: 0; align-items: center; }
+  .center { justify-content: center; }
+  .col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .shot { border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); max-width: 100%; max-height: 100%; object-fit: contain; }
+  .cap { font-size: 24px; color: var(--muted); margin-top: 14px; }
+  .pill { display: inline-block; padding: 8px 20px; border-radius: 99px; font-size: 26px; font-weight: 700; margin-right: 12px; }
+  .pill.b { background: rgba(79,125,243,.18); color: #8fb0ff; } .pill.r { background: rgba(224,86,63,.18); color: #ff9a88; } .pill.g { background: rgba(79,191,122,.18); color: #8be0ad; }
+  ul { margin: 0; padding-left: 40px; } li { margin: 10px 0; }
+  .video-slide { padding: 0; background: #000; }
+  .video-slide video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .video-slide .tag { position: absolute; right: 40px; top: 36px; font-size: 26px; background: rgba(0,0,0,.65); padding: 10px 20px; border-radius: 10px; color: #fff; }
+  .title { justify-content: flex-end; background: linear-gradient(180deg, rgba(15,18,22,.15), rgba(15,18,22,.95) 70%), url(media/hero-room.jpg) center/cover; }
+  .flow { display: flex; align-items: stretch; gap: 22px; margin-top: 30px; }
+  .box { background: var(--card); border-radius: 18px; padding: 28px 30px; flex: 1; border-top: 6px solid var(--blue); }
+  .box h3 { font-size: 34px; margin: 0 0 12px; } .box p { font-size: 26px; margin: 0; line-height: 1.4; color: #c3cad5; }
+  .arrow { align-self: center; font-size: 50px; color: var(--muted); }
+  .big { font-size: 46px; line-height: 1.35; }
+  #hud { position: fixed; right: 14px; bottom: 10px; font: 14px monospace; color: #666; z-index: 5; }
+  #notes { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(10,10,10,.94); color: #eee; font: 20px/1.45 system-ui; padding: 16px 28px 34px; display: none; z-index: 4; border-top: 2px solid #333; max-height: 40vh; overflow: auto; }
+  #notes b { color: #8fb0ff; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1 · Title -->
+  <section class="slide title" data-time="0:00 – 0:15"
+    data-notes="Hi, we're [team]. Every medical and psychology student has to learn to take a history from patients who don't cooperate. Today they learn that from a textbook or on real patients. We built a patient you can practise on as often as you like.">
+    <div class="kicker">OTH Amberg-Weiden · Meet Your AI Patient</div>
+    <h1>PsyTrain:<br/>practise the hard conversations<br/>before they're real</h1>
+    <p class="muted">A life-size AI patient who talks, reacts, gets distracted or angry, and gives you feedback afterwards.</p>
+  </section>
+
+  <!-- 2 · Problem -->
+  <section class="slide center" data-time="0:15 – 0:35"
+    data-notes="History-taking is a core skill, and the hardest part is the difficult patient: one who keeps drifting off, or one who gets hostile. Students rarely get to practise that safely. Actors are expensive and you can't repeat the same case ten times. And afterwards nobody tells you exactly which sentence went wrong.">
+    <div class="kicker">The problem</div>
+    <h2>Difficult patients are learned on real patients</h2>
+    <ul class="big">
+      <li>The hardest part of a history is the patient who <b>drifts off</b> or <b>gets aggressive</b>.</li>
+      <li>Simulation actors are expensive and a case can't be repeated on demand.</li>
+      <li>Feedback is rare and vague: no one points at the turn where it went wrong.</li>
+    </ul>
+  </section>
+
+  <!-- 3 · Build a case -->
+  <section class="slide" data-time="0:35 – 0:50"
+    data-notes="The instructor or student builds a case in three clicks: who the patient is, their Big Five personality, and the difficult situation to train, distracted or aggressive. Then you walk into a real 3D consultation room. It runs in the browser and is built on WebXR for Apple Vision Pro. Next to the patient is a SKID interview form you fill in while you talk.">
+    <div class="kicker">Step 1 · Build a case</div>
+    <h2 style="margin-bottom: 20px">Patient · Big Five personality · difficult situation</h2>
+    <div class="row">
+      <div class="col"><img class="shot" src="media/landing.jpg" /><div class="cap">Landing page: choose patient, personality and situation</div></div>
+      <div class="col"><img class="shot" src="media/room-skid-notes.jpg" /><div class="cap">3D consultation room with SKID interview notes (three.js + WebXR)</div></div>
+    </div>
+  </section>
+
+  <!-- 4 · Demo: distracted -->
+  <section class="slide video-slide" data-time="0:50 – 1:45" data-video="demo-distracted"
+    data-notes="(Let the clip play; stay quiet for the first answer.) Mary is easily distracted. Watch the top left: our AI orchestrator decides, before each answer, which mode she is in. An open question makes her drift: the plant, her mum's plant called Gerald. A light bulb pops up with three evidence-based strategies. The student uses one, names the drift and repeats the question, and Mary comes back. Every word she says is generated live.">
+    <video id="demo-distracted" src="media/demo-distracted.mp4" poster="media/poster-distracted.jpg" preload="auto" playsinline></video>
+    <div class="tag">Live AI patient · easily distracted</div>
+  </section>
+
+  <!-- 5 · Demo: aggressive -->
+  <section class="slide video-slide" data-time="1:45 – 2:15" data-video="demo-aggressive" data-start="13.5"
+    data-notes="Same system, different patient. Ryan was sent by HR. The student says 'calm down, you have anger issues', which is a classic mistake. The orchestrator switches him to aggressive and he crosses his arms. Then the student names the feeling and gives him control, and he de-escalates.">
+    <video id="demo-aggressive" src="media/demo-aggressive.mp4" poster="media/poster-aggressive.jpg" preload="auto" playsinline></video>
+    <div class="tag">Live AI patient · aggressive</div>
+  </section>
+
+  <!-- 6 · Feedback -->
+  <section class="slide" data-time="2:15 – 2:40"
+    data-notes="After the session, click End session and our feedback module MIRROR reviews the transcript. It scores ten communication skills, shows what the patient revealed and what you missed, points to the exact turn where it went wrong with a better sentence to try, and compares what you did with the strategies for this patient type. Then you hit Try again.">
+    <div class="kicker">Step 3 · Learn from it</div>
+    <h2 style="margin-bottom: 20px">Feedback that points at the exact turn</h2>
+    <div class="row">
+      <div class="col"><img class="shot" src="media/feedback-summary.png" /><div class="cap">Summary: facts found, key moment, what to try instead (built-in sample report)</div></div>
+      <div class="col"><img class="shot" src="media/feedback-evidence.png" /><div class="cap">Transcript evidence: where it started, why it matters, what to say instead</div></div>
+    </div>
+  </section>
+
+  <!-- 7 · How it works -->
+  <section class="slide center" data-time="2:40 – 2:52"
+    data-notes="Under the hood: ElevenLabs handles listening and the voice. Our orchestrator on Amazon Bedrock uses a fast Claude model to decide the patient's mode and a second model to write the answer, with a running memory. The same answer carries a body cue, so posture and gestures land on the first word. TalkingHead does lip-sync in a three.js room.">
+    <div class="kicker">How it works</div>
+    <h2>One live loop per answer</h2>
+    <div class="flow">
+      <div class="box"><h3>🎙 Ears &amp; voice</h3><p>ElevenLabs Agents: speech recognition, turn-taking, voice per patient</p></div>
+      <div class="arrow">→</div>
+      <div class="box" style="border-color: var(--red)"><h3>🧠 Orchestrator</h3><p>Claude on Amazon Bedrock picks the mode (normal / distracted / aggressive), then writes the answer with a running memory</p></div>
+      <div class="arrow">→</div>
+      <div class="box" style="border-color: var(--green)"><h3>🧍 Body</h3><p>Body cue with every answer: posture, gaze, gestures, lip-sync (TalkingHead, three.js, WebXR)</p></div>
+      <div class="arrow">→</div>
+      <div class="box" style="border-color: #c9a33a"><h3>📋 MIRROR</h3><p>Hints during the talk, scored feedback after it</p></div>
+    </div>
+    <p class="muted" style="margin-top: 40px; font-size: 30px;">Hint strategies are drawn from therapy literature (Socratic dialogue, psychosis worksheets) in <code>hints.json</code>.</p>
+  </section>
+
+  <!-- 8 · Close -->
+  <section class="slide" data-time="2:52 – 3:00"
+    data-notes="Practise, get feedback, try again, as often as you need. Next: more personality traits, more situations, and testing in the Vision Pro headset with students. Thank you.">
+    <div class="kicker">PsyTrain</div>
+    <h1 style="font-size: 92px">Practise. Get feedback.<br/>Try again.</h1>
+    <p class="big muted">Next: all Big Five traits, more difficult situations, a classroom test on Apple Vision Pro.</p>
+    <p style="margin-top: auto">
+      <span class="pill b">Easily distracted</span><span class="pill r">Aggressive</span><span class="pill g">Live hints</span><span class="pill b">Scored feedback</span>
+    </p>
+  </section>
+
+</div>
+<div id="notes"></div>
+<div id="hud"></div>
+<script>
+  const stage = document.getElementById('stage');
+  const slides = [...document.querySelectorAll('.slide')];
+  const notes = document.getElementById('notes'), hud = document.getElementById('hud');
+  let i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1)) || 1) - 1));
+  let t0 = null;
+  function fit() {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
+  }
+  function show(n) {
+    slides.forEach((el, k) => {
+      el.classList.toggle('on', k === n);
+      const v = el.querySelector('video');
+      if (v && k !== n) v.pause();
+    });
+    i = n; location.hash = n + 1;
+    const el = slides[n], v = el.querySelector('video');
+    if (v) { v.currentTime = parseFloat(el.dataset.start || 0); v.play().catch(() => {}); }
+    notes.innerHTML = `<b>Slide ${n + 1}/${slides.length} · ${el.dataset.time}</b><br>${el.dataset.notes}`;
+    tick();
+  }
+  function tick() {
+    const el = t0 ? Math.floor((Date.now() - t0) / 1000) : 0;
+    hud.textContent = `${i + 1}/${slides.length}  ${String(Math.floor(el / 60))}:${String(el % 60).padStart(2, '0')}  (N notes · T timer · F fullscreen)`;
+  }
+  setInterval(tick, 500);
+  addEventListener('resize', fit);
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); if (!t0) t0 = Date.now(); show(Math.min(slides.length - 1, i + 1)); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) show(Math.max(0, i - 1));
+    else if (e.key === 'n' || e.key === 'N') notes.style.display = notes.style.display === 'block' ? 'none' : 'block';
+    else if (e.key === 't' || e.key === 'T') t0 = Date.now();
+    else if (e.key === 'f' || e.key === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    else if (e.key === 'k' || e.key === 'K') { const v = slides[i].querySelector('video'); if (v) v.paused ? v.play() : v.pause(); }
+  });
+  stage.addEventListener('click', () => { const v = slides[i].querySelector('video'); if (v) v.paused ? v.play() : v.pause(); });
+  fit(); show(i);
+</script>
+</body>
+</html>
