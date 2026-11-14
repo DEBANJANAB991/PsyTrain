@@ -7,6 +7,7 @@
  *   POST /api/consultations/start                  { scenario_id }
  *   POST /api/consultations/replay                 ConsultationSession
  *   GET  /api/consultations/{session_id}/assessment
+ *   GET  /api/consultations/{session_id}             (saved record, used by My Progress)
  */
 
 export class MirrorApiError extends Error {
@@ -51,6 +52,8 @@ export function createMirrorApi({ fetchImpl = globalThis.fetch?.bind(globalThis)
     startConsultation: (scenarioId) => request('/start', { method: 'POST', body: { scenario_id: scenarioId } }),
     // Deterministic assessment + Bedrock contextual feedback (its own timeout is 15 s): allow two minutes.
     replay: (session) => request('/replay', { method: 'POST', body: session, timeoutMs: 120000 }),
-    getAssessment: (sessionId) => request(`/${encodeURIComponent(sessionId)}/assessment`)
+    getAssessment: (sessionId) => request(`/${encodeURIComponent(sessionId)}/assessment`),
+    // the saved ConsultationRecord: { session, assessment, created_at, completed_at } (My Progress)
+    getRecord: (sessionId) => request(`/${encodeURIComponent(sessionId)}`)
   };
 }
