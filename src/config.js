@@ -200,6 +200,16 @@ export const HAND_RELAX = {
   Pinky:  [0.18, 0.23, 0.12],
   Thumb:  [0.05, 0.07, 0.04]
 };
+// Clenched fist: extra curl (rad) on top of HAND_RELAX at behavior.grip = 1, scaled down for smaller grips.
+// Only used with crossed or clasped arms (affect._basePose): on the thighs a fist would dig into the legs.
+// The thumb closes over the index and middle fingers (z, mirrored per side, like the relaxed curl).
+export const HAND_FIST = {
+  Index:  [1.15, 1.35, 0.85],
+  Middle: [1.20, 1.40, 0.85],
+  Ring:   [1.25, 1.40, 0.85],
+  Pinky:  [1.30, 1.40, 0.85],
+  Thumb:  [0.45, 0.35, 0.30]
+};
 
 // ---------------------------------------------------------------------------------------------
 // Emotions
@@ -360,19 +370,20 @@ export const BODY_DELTAS = {
 //   breath      breathing rate multiplier (1 = normal)
 //   headMotion  amount of small idle head movement
 //   arms        'rest' | 'clasped' | 'crossed'
+//   grip        0..1, how tightly the hands close (1 = fists); only with crossed or clasped arms
 // ---------------------------------------------------------------------------------------------
 export const BEHAVIOR = {
-  neutral:    { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.80, blink: 1.0, breath: 1.0, headMotion: 0.5, arms: 'rest' },
+  neutral:    { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.80, blink: 1.0, breath: 1.0, headMotion: 0.5, grip: 0.00, arms: 'rest' },
   // Tension reads through raised shoulders and restrained movement. Keeping each hand supported on a
   // thigh avoids the interwoven, unsupported fingers that made the old tense pose look deformed.
-  tense:      { fidget: 0.40, footTap: 0.30, legBounce: 0.15, shift: 0.32, lookAround: 0.25, gazeStudent: 0.45, blink: 1.6, breath: 1.3, headMotion: 0.5, arms: 'rest' },
-  anxious:    { fidget: 0.95, footTap: 0.20, legBounce: 0.70, shift: 0.60, lookAround: 0.65, gazeStudent: 0.30, blink: 2.0, breath: 1.7, headMotion: 0.8, arms: 'clasped' },
-  angry:      { fidget: 0.15, footTap: 0.55, legBounce: 0.10, shift: 0.20, lookAround: 0.05, gazeStudent: 0.95, blink: 0.5, breath: 1.4, headMotion: 0.3, arms: 'crossed' },
-  sad:        { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.15, blink: 1.2, breath: 0.8, headMotion: 0.2, arms: 'rest' },
-  withdrawn:  { fidget: 0.15, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.10, blink: 1.0, breath: 0.85, headMotion: 0.15, arms: 'clasped' },
-  dismissive: { fidget: 0.20, footTap: 0.25, legBounce: 0.00, shift: 0.45, lookAround: 0.60, gazeStudent: 0.35, blink: 0.8, breath: 0.95, headMotion: 0.6, arms: 'crossed' },
-  excited:    { fidget: 0.55, footTap: 0.25, legBounce: 0.55, shift: 0.75, lookAround: 0.30, gazeStudent: 0.92, blink: 1.3, breath: 1.5, headMotion: 0.95, arms: 'rest' },
-  relieved:   { fidget: 0.05, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.90, blink: 0.9, breath: 0.85, headMotion: 0.5, arms: 'rest' }
+  tense:      { fidget: 0.40, footTap: 0.30, legBounce: 0.15, shift: 0.32, lookAround: 0.25, gazeStudent: 0.45, blink: 1.6, breath: 1.3, headMotion: 0.5, grip: 0.00, arms: 'rest' },
+  anxious:    { fidget: 0.95, footTap: 0.20, legBounce: 0.70, shift: 0.60, lookAround: 0.65, gazeStudent: 0.30, blink: 2.0, breath: 1.7, headMotion: 0.8, grip: 0.35, arms: 'clasped' },
+  angry:      { fidget: 0.15, footTap: 0.55, legBounce: 0.10, shift: 0.20, lookAround: 0.05, gazeStudent: 0.95, blink: 0.5, breath: 1.4, headMotion: 0.3, grip: 1.00, arms: 'crossed' },
+  sad:        { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.15, blink: 1.2, breath: 0.8, headMotion: 0.2, grip: 0.00, arms: 'rest' },
+  withdrawn:  { fidget: 0.15, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.10, blink: 1.0, breath: 0.85, headMotion: 0.15, grip: 0.00, arms: 'crossed' },
+  dismissive: { fidget: 0.20, footTap: 0.25, legBounce: 0.00, shift: 0.45, lookAround: 0.60, gazeStudent: 0.35, blink: 0.8, breath: 0.95, headMotion: 0.6, grip: 0.85, arms: 'crossed' },
+  excited:    { fidget: 0.55, footTap: 0.25, legBounce: 0.55, shift: 0.75, lookAround: 0.30, gazeStudent: 0.92, blink: 1.3, breath: 1.5, headMotion: 0.95, grip: 0.00, arms: 'rest' },
+  relieved:   { fidget: 0.05, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.90, blink: 0.9, breath: 0.85, headMotion: 0.5, grip: 0.00, arms: 'rest' }
 };
 
 // ---------------------------------------------------------------------------------------------

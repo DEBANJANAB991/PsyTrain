@@ -105,14 +105,16 @@ export class BodyLanguage {
         arm.y += f * 0.02 * noise(t * 0.6, sd + s2 + 4);
         // Finger picking / thumb rubbing. The base pose already has a natural curl, so these are
         // deliberately small and affect adjacent joints together rather than making claw shapes.
-        const pick = burst(t, sd + s2 + 6, 0.28 + 0.35 * f, 11);
+        // A clenched hand (behavior.grip) does not pick at its fingers; it only tightens a little now and then.
+        const open = 1 - 0.85 * Math.min(1, b.grip || 0);
+        const pick = open * burst(t, sd + s2 + 6, 0.28 + 0.35 * f, 11);
         const osc = 0.5 + 0.5 * Math.sin(this._osc('pick' + side, 1.4 + 0.3 * noise(t * 0.3, s2), dt));
-        this._d(side + 'HandThumb1').x += f * 0.10 * pick * osc + f * 0.025 * noise(t * 2, s2);
+        this._d(side + 'HandThumb1').x += f * 0.10 * pick * osc + open * f * 0.025 * noise(t * 2, s2);
         this._d(side + 'HandThumb2').x += f * 0.07 * pick * osc;
-        this._d(side + 'HandIndex1').x += f * 0.08 * (0.3 + 0.7 * pick) * (0.5 + 0.5 * noise(t * 2.2, s2 + 8));
+        this._d(side + 'HandIndex1').x += f * 0.08 * (0.3 * open + 0.7 * pick) * (0.5 + 0.5 * noise(t * 2.2, s2 + 8));
         this._d(side + 'HandIndex2').x += f * 0.06 * pick * osc;
-        this._d(side + 'HandMiddle1').x += f * 0.035 * noise(t * 1.7, s2 + 9);
-        this._d(side + 'HandRing2').x += f * 0.025 * noise(t * 1.9, s2 + 10);
+        this._d(side + 'HandMiddle1').x += open * f * 0.035 * noise(t * 1.7, s2 + 9);
+        this._d(side + 'HandRing2').x += open * f * 0.025 * noise(t * 1.9, s2 + 10);
       }
       // Only clasped hands can wring against one another. Resting hands make smaller independent
       // movements above; applying this motion while they are apart unnaturally rolls both wrists.

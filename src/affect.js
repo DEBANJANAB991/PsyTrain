@@ -1,5 +1,5 @@
 import {
-  SEATED_POSE, ARMS, HAND_RELAX, BODY_DELTAS, FACE, MICRO, BEHAVIOR,
+  SEATED_POSE, ARMS, HAND_RELAX, HAND_FIST, BODY_DELTAS, FACE, MICRO, BEHAVIOR,
   EMOTIONS, GAZES, GESTURES
 } from './config.js';
 
@@ -76,7 +76,7 @@ export class Affect {
   setAffect(input = {}) {
     let { emotion, intensity, gaze, gesture, behavior } = input;
     const s = this.state;
-    const prevArms = this.getBehavior().arms;
+    const prev = this.getBehavior(), prevArms = prev.arms, prevGrip = prev.grip;
     if (emotion !== undefined) {
       if (!EMOTIONS.includes(emotion)) { console.warn('[affect] unknown emotion', emotion); emotion = s.emotion; }
       s.emotion = emotion;
@@ -90,7 +90,8 @@ export class Affect {
     }
 
     this._applyMood();
-    this._applyPose(emotion !== undefined || this.getBehavior().arms !== prevArms ? 900 : 500);
+    const now = this.getBehavior();
+    this._applyPose(emotion !== undefined || now.arms !== prevArms || now.grip !== prevGrip ? 900 : 500);
     if (gaze !== undefined) this._applyGaze(s.gaze);
     if (gesture && gesture !== 'none') {
       if (GESTURES.includes(gesture)) this.playGesture(gesture); else console.warn('[affect] unknown gesture', gesture);
@@ -157,7 +158,7 @@ export class Affect {
     return base;
   }
 
-  _basePose(arms) {
+  _basePose(arms, grip = 0) {
     const base = {};
     for (const [k, v] of Object.entries(this.poseCache)) base[k] = { ...v };
     for (const [k, v] of Object.entries(SEATED_POSE)) base[k] = { ...v };
@@ -190,6 +191,19 @@ export class Affect {
         });
       }
     }
+    // Clenched hands (behavior.grip). Not with hands on the thighs, where a fist would dig into the legs.
+    const g = arms === 'crossed' || arms === 'clasped' ? Math.min(1, Math.max(0, grip || 0)) : 0;
+    if (g > 0) {
+      for (const [side, sgn] of [['Left', -1], ['Right', 1]]) {
+        for (const [finger, curl] of Object.entries(HAND_FIST)) {
+          curl.forEach((c, i) => {
+            const p = base[`${side}Hand${finger}${i + 1}.rotation`];
+            if (!p) return;
+            if (finger === 'Thumb') p.z += sgn * c * g; else p.x += c * g;
+          });
+        }
+      }
+    }
     return base;
   }
 
@@ -211,7 +225,8 @@ export class Affect {
 
   _applyPose(ms = 700) {
     const { emotion, intensity } = this.state;
-    const props = this._basePose(this.getBehavior().arms);
+    const beh = this.getBehavior();
+    const props = this._basePose(beh.arms, beh.grip);
     const add = (k, d, f) => {
       const p = props[k] || (props[k] = { x: 0, y: 0, z: 0 });
       p.x += d.x * f; p.y += d.y * f; p.z += d.z * f;

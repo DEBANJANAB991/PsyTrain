@@ -185,3 +185,35 @@ html.mirror-scroll body { overflow: visible; height: auto; }
 @media (max-width: 700px) {
   #debug:not([hidden]) ~ .mirror-edge { right: 12px; }
 }
+/* one-screen summary (feedback.js summaryView): fits the viewport below the feedback bar, no scrolling */
+.fb-overview { box-sizing: border-box; width: min(1000px, 100%); height: calc(100dvh - 52px); margin: 0 auto; padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 12px; overflow: hidden; font-size: 14px; line-height: 1.45; }
+.fb-overview[hidden], .fb[hidden] { display: none; }
+.fb-overview > * { flex: none; margin: 0; }
+.fb-overview .fb-demo-banner { margin: 0; }
+.fb-overview h1 { margin: 2px 0 0; font-size: 24px; font-weight: 600; }
+.fb-overview h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.fb-overview p { margin: 4px 0 0; }
+.fb-overview .fb-grid { margin-top: 0; }
+.fb-overview-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.fb-stats { display: flex; gap: 10px; }
+.fb-stat { padding: 8px 14px; border: 1px solid #2c3037; border-radius: 10px; background: #1b1e23; text-align: center; }
+.fb-stat strong { display: block; font-size: 18px; font-weight: 600; }
+.fb-stat span { font-size: 11.5px; opacity: .65; }
+.fb-clamp, .fb-clamp-2 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.fb-clamp { -webkit-line-clamp: 3; line-clamp: 3; }
+.fb-clamp-2 { -webkit-line-clamp: 2; line-clamp: 2; }
+.fb-overview .fb-list li { margin: 4px 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.fb-overview .fb-list { padding-left: 0; list-style: none; }
+.fb-overview .fb-list li::before { content: '•  '; opacity: .6; }
+.fb-key-moment { border-color: #6a5432; }
+.fb-next-step { border-color: #34467a; }
+.fb-next-step blockquote { margin: 6px 0 0; }
+.fb-overview-actions { display: flex; gap: 12px; justify-content: center; padding-top: 6px; }
+.fb-overview-actions .mirror-btn { padding: 11px 24px; font-size: 15px; font-weight: 600; }
+.fb-details-nav { margin-bottom: 14px; }
+@media (max-width: 700px) {
+  .fb-overview { height: auto; min-height: calc(100dvh - 52px); overflow: visible; }
+  .fb-stats { width: 100%; }
+  .fb-stat { flex: 1; padding: 6px 8px; }
+}

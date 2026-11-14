@@ -2,7 +2,10 @@
  * PsyTrain-native view of a MIRROR assessment. Renders only what buildFeedbackModel() returns (what MIRROR
  * saved, or the clearly labelled demo fixture) plus the optional coaching / issue results; text via textContent.
  *
- * Section order: Overall assessment · Communication skills · Patient information · Consultation transcript ·
+ * Two views: a one-screen summary (shown first: key stats, top strengths and improvements, the first located
+ * issue, one next step) and the detailed report below, opened with "See detailed feedback".
+ *
+ * Detailed report section order: Overall assessment · Communication skills · Patient information · Consultation transcript ·
  * Where communication issues started · Strategy comparison & personalised coaching · Your next practice steps ·
  * Communication frameworks · Progress across attempts (only with comparison data) · [Data quality] · Try again.
  *
@@ -83,10 +86,67 @@ function downloadButton(file, label, action) {
   return b;
 }
 
+// ---- one-screen summary (default view); the full report is one click away ----------------------------
+const SUMMARY_ITEMS = 2;   // strengths / improvements shown on the summary
+
+function summaryView(m, options, demo, onDetails) {
+  const strengths = m.overall.strengths.slice(0, SUMMARY_ITEMS);
+  const improvements = (m.overall.improvements.length ? m.overall.improvements
+    : m.criteria.filter((c) => c.status === 'improvement').map((c) => ({ text: c.name }))).slice(0, SUMMARY_ITEMS);
+  const issue = options.issues?.status === 'issues' ? options.issues.located[0] : null;
+  const step = options.practiceSteps?.[0];
+  const nextText = options.learningObjective ?? m.overall.nextSteps[0]?.text ?? null;
+  const bullets = (items, emptyText) => (items.length
+    ? h('ul', { class: 'fb-list' }, items.map((i) => h('li', {}, i.text))) : empty(emptyText));
+  const stat = (label, value) => h('div', { class: 'fb-stat' }, h('strong', {}, value), h('span', {}, label));
+
+  const details = h('button', { type: 'button', class: 'mirror-btn mirror-btn-primary', 'data-action': 'show-details' }, 'See detailed feedback');
+  details.addEventListener('click', onDetails);
+  const again = options.onTryAgain ? h('button', { type: 'button', class: 'mirror-btn', 'data-action': 'try-again' }, 'Try again') : null;
+  again?.addEventListener('click', options.onTryAgain);
+
+  return h('div', { class: 'fb-overview', 'data-view': 'summary' },
+    demo ? h('div', { class: 'fb-demo-banner fb-demo-banner-small', role: 'note' }, demo.label) : null,
+    h('header', { class: 'fb-overview-head' },
+      h('div', {},
+        h('p', { class: 'fb-eyebrow' }, demo ? 'MIRROR · demo assessment (simulated, not saved)' : 'MIRROR · consultation review'),
+        h('h1', {}, 'Your consultation at a glance')),
+      h('div', { class: 'fb-stats' },
+        stat('facts found', `${m.metrics.factsDiscovered} / ${m.metrics.factsTotal}`),
+        stat('duration', m.metrics.duration),
+        stat('areas to practise', String(m.metrics.areasToPractise)))),
+    m.humanReviewRequired ? h('p', { class: 'fb-note' }, 'Flagged for human review.') : null,
+    h('p', { class: 'fb-summary fb-clamp' }, m.overall.summary),
+    h('div', { class: 'fb-grid' },
+      h('article', { class: 'fb-card fb-good' }, h('h3', {}, 'What went well'), bullets(strengths, 'Nothing specific was noted.')),
+      h('article', { class: 'fb-card fb-improve' }, h('h3', {}, 'Work on next'), bullets(improvements, 'No improvement areas were noted.'))),
+    issue ? h('article', { class: 'fb-card fb-key-moment', 'data-start-turn': issue.start.number },
+      h('div', { class: 'fb-card-head' },
+        h('div', {}, h('span', { class: 'fb-kicker' }, 'Key moment'), h('h3', {}, issue.title)),
+        h('span', { class: 'fb-pill fb-issue-turn' }, `Turn ${issue.start.number}`)),
+      h('p', { class: 'fb-clamp-2' }, `${issue.start.speaker === 'doctor' ? 'You' : 'Patient'}: “${issue.start.text}”`),
+      issue.suggestion ? h('p', { class: 'fb-small fb-clamp-2' }, h('strong', {}, 'Try instead: '), issue.suggestion) : null) : null,
+    nextText || step ? h('article', { class: 'fb-card fb-next-step' },
+      h('span', { class: 'fb-kicker' }, 'For your next consultation'),
+      nextText ? h('p', { class: 'fb-clamp-2' }, nextText) : null,
+      step?.phrase ? h('blockquote', { class: 'fb-clamp-2' }, step.phrase) : null) : null,
+    h('div', { class: 'fb-overview-actions' }, details, again));
+}
+
 export function renderFeedback(container, assessment, options = {}) {
   const m = buildFeedbackModel(assessment);
   const demo = options.demo ?? null;
-  const root = h('div', { class: 'fb', 'data-session-id': m.sessionId, 'data-demo': demo ? 'true' : null });
+  const wrap = h('div', { class: 'fb-views' });
+  const root = h('div', { class: 'fb', 'data-session-id': m.sessionId, 'data-demo': demo ? 'true' : null, 'data-view': 'details', hidden: true });
+  const showView = (detailed) => {
+    overview.hidden = detailed;
+    root.hidden = !detailed;
+    container.closest('.mirror-feedback')?.scrollIntoView({ behavior: 'auto', block: 'start' });
+  };
+  const overview = summaryView(m, options, demo, () => showView(true));
+  const back = h('button', { type: 'button', class: 'mirror-btn', 'data-action': 'show-summary' }, '← Back to summary');
+  back.addEventListener('click', () => showView(false));
+  root.append(h('div', { class: 'fb-details-nav' }, back));
   let n = 0;
   const num = () => String(++n).padStart(2, '0');
 
@@ -199,7 +259,8 @@ export function renderFeedback(container, assessment, options = {}) {
       h('ul', { class: 'fb-list' }, m.warnings.map((w) => h('li', {}, `${w.factId} (event ${w.eventId}): ${w.message}`)))));
   }
   if (options.onTryAgain) root.append(nextStepsSection(options));
-  container.replaceChildren(root);
+  wrap.append(overview, root);
+  container.replaceChildren(wrap);
   return m;
 }
 
