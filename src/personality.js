@@ -15,6 +15,14 @@ import { BEHAVIOR_META, BEHAVIOR_KEYS, TRAIT_NAMES, EVENT_NAMES, ARM_NAMES, EMOT
  */
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+/** A number from an agent (numeric strings are fine); anything else is an error the agent can read and fix. */
+const toNum = (v, what) => {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  if (typeof n !== 'number' || !Number.isFinite(n)) throw new Error(`${what} must be a number, got ${JSON.stringify(v)}`);
+  return n;
+};
+/** clamp(toNum(v)) */
+const num = (v, a, b, what) => clamp(toNum(v, what), a, b);
 const TAU = Math.PI * 2;
 const noise = (t, seed) => (Math.sin(t + seed * 12.9898) + 0.5 * Math.sin(2.31 * t + seed * 4.1) + 0.25 * Math.sin(3.77 * t + seed * 7.3)) / 1.75;
 const hash = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1000; return h; };
@@ -118,16 +126,16 @@ export class Personality {
     const traits = {};
     for (const [k, v] of Object.entries(def.traits || {})) {
       if (!TRAIT_NAMES.includes(k)) throw new Error(`unknown trait "${k}". Valid: ${TRAIT_NAMES.join(', ')}`);
-      traits[k] = clamp(Number(v), 0, 1);
+      traits[k] = num(v, 0, 1, k);
     }
     const ranges = this._cleanRanges(def.ranges || {});
     const entry = {
       description: String(def.description || '').slice(0, 200),
       traits: { ...PRESETS.default.traits, ...traits },
       ranges,
-      variability: def.variability === undefined ? 0.25 : clamp(Number(def.variability), 0, 1)
+      variability: def.variability === undefined ? 0.25 : num(def.variability, 0, 1, 'variability')
     };
-    if (def.default_emotion) { this._checkEmotion(def.default_emotion); entry.emotion = def.default_emotion; entry.intensity = def.default_intensity ?? 0.6; }
+    if (def.default_emotion) { this._checkEmotion(def.default_emotion); entry.emotion = def.default_emotion; entry.intensity = num(def.default_intensity ?? 0.6, 0, 1, 'default_intensity'); }
     if (def.arms) { this._checkArms(def.arms); entry.arms = def.arms; }
     this.custom[name] = entry;
     saveCustom(this.custom);
@@ -138,22 +146,23 @@ export class Personality {
   setTraits(traits) {
     for (const [k, v] of Object.entries(traits || {})) {
       if (!TRAIT_NAMES.includes(k)) throw new Error(`unknown trait "${k}". Valid: ${TRAIT_NAMES.join(', ')}`);
-      this.traits[k] = clamp(Number(v), 0, 1);
     }
+    // all valid before any is applied
+    const clean = Object.fromEntries(Object.entries(traits || {}).map(([k, v]) => [k, num(v, 0, 1, k)]));
+    Object.assign(this.traits, clean);
     this.name = this.name.endsWith('*') ? this.name : this.name + '*';   // marks "modified preset"
     this.affect.setAffect({});
   }
 
-  setVariability(v) { this.variability = clamp(Number(v), 0, 1); this.affect.setAffect({}); }
+  setVariability(v) { this.variability = num(v, 0, 1, 'variability'); this.affect.setAffect({}); }
 
   setRanges(ranges) {
-    for (const [k, r] of Object.entries(ranges || {})) {
-      if (!BEHAVIOR_META[k]) throw new Error(`unknown behavior "${k}". Valid: ${BEHAVIOR_KEYS.join(', ')}`);
-      if (r === null) { delete this.ranges[k]; continue; }
-      const meta = BEHAVIOR_META[k];
-      const lo = clamp(Number(r.min ?? meta.min), meta.min, meta.max), hi = clamp(Number(r.max ?? meta.max), meta.min, meta.max);
-      this.ranges[k] = { min: Math.min(lo, hi), max: Math.max(lo, hi) };
-    }
+    const entries = Object.entries(ranges || {});
+    for (const [k] of entries) if (!BEHAVIOR_META[k]) throw new Error(`unknown behavior "${k}". Valid: ${BEHAVIOR_KEYS.join(', ')}`);
+    // all checked before any is applied; null restores the full range
+    const clean = this._cleanRanges(Object.fromEntries(entries.filter(([, r]) => r !== null)));
+    for (const [k, r] of entries) if (r === null) delete this.ranges[k];
+    Object.assign(this.ranges, clean);
     this.affect.setAffect({});
   }
 
@@ -162,8 +171,9 @@ export class Personality {
     for (const [k, r] of Object.entries(ranges)) {
       if (!BEHAVIOR_META[k]) throw new Error(`unknown behavior "${k}". Valid: ${BEHAVIOR_KEYS.join(', ')}`);
       if (!r) continue;
+      if (typeof r !== 'object') throw new Error(`range for ${k} must be { min, max }`);
       const meta = BEHAVIOR_META[k];
-      const lo = clamp(Number(r.min ?? meta.min), meta.min, meta.max), hi = clamp(Number(r.max ?? meta.max), meta.min, meta.max);
+      const lo = num(r.min ?? meta.min, meta.min, meta.max, `${k}.min`), hi = num(r.max ?? meta.max, meta.min, meta.max, `${k}.max`);
       out[k] = { min: Math.min(lo, hi), max: Math.max(lo, hi) };
     }
     return out;
@@ -175,8 +185,8 @@ export class Personality {
     for (const [k, v] of Object.entries(values || {})) {
       if (k === 'arms') { this._checkArms(v); this.arms = v; continue; }
       if (!BEHAVIOR_META[k]) throw new Error(`unknown behavior "${k}". Valid: ${BEHAVIOR_KEYS.join(', ')}, arms`);
-      const meta = BEHAVIOR_META[k], val = clamp(Number(v), meta.min, meta.max);
-      if (val !== Number(v)) notes.push(`${k} clamped to ${val}`);
+      const meta = BEHAVIOR_META[k], raw = toNum(v, k), val = clamp(raw, meta.min, meta.max);
+      if (val !== raw) notes.push(`${k} clamped to ${val}`);
       clean[k] = val;
     }
     if (exact) {
@@ -197,7 +207,7 @@ export class Personality {
   trigger(name, strength = 0.7) {
     const ev = EVENTS[name];
     if (!ev) throw new Error(`unknown event "${name}". Valid: ${EVENT_NAMES.join(', ')}`);
-    strength = clamp(Number(strength), 0, 1);
+    strength = num(strength, 0, 1, 'strength');
     const t = this.traits;
     const react = ev.negative ? 0.5 + 0.5 * t.neuroticism : 0.5 + 0.5 * t.agreeableness;   // 0.5..1
     const fx = { ...ev.fx, ...(ev.fxFn ? ev.fxFn(t) : {}) };

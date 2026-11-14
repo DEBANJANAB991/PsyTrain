@@ -7,7 +7,7 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "test": "node --test test/mirror/*.test.js"
+    "test": "node --test test/mirror/*.test.js test/agents/*.test.js"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^1.1.2",

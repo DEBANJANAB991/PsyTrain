@@ -216,6 +216,15 @@ control panel is at `&debug=1`). Click it; she says hello, then it's your turn. 
   `prompts/<situation>/guardrails.txt` + `normal.txt` or the behaviour file + the memory, and streamed to ElevenLabs.
   While the mode is being decided, the answer in the current mode is already being generated and is used if the mode
   stays the same.
+- **Safety nets in the orchestrator.** A keyword check (`RISK_RE`) also marks a risk question when the decision
+  model misses it, fails, or the turn was a "Bingo". A decision that takes longer than 6 s is dropped and the mode is
+  kept. Before the words reach ElevenLabs, `speechFilter` removes `*stage directions*`, markdown, stray `[[cues]]`,
+  bracketed text and emojis, even when they are split across stream chunks. If the answer model says nothing within
+  12 s, the patient says "Sorry, what was that?" instead of going silent.
+- **Tests.** `npm test` runs the orchestrator end to end with a scripted model (`test/agents/`): auth, every mode
+  trigger, the risk check, timeouts, the speech filter, memory, and every prompt filled in for every patient and
+  situation. It also covers the director endpoint against a fake Claude API and fuzzes the agent tools with junk
+  arguments.
 - The **memory saver** (in the orchestrator, `prompts/<situation>/memory.txt`) updates a short summary after each
   answer (topics, facts revealed and how precisely, stories told or what irritated / calmed the patient, mode
   history). Both mode prompts get it, so a switch keeps the context. The prompts are read on every answer: edit

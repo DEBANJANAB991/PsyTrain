@@ -30,15 +30,18 @@ const MAX_MESSAGES = 14;
 
 function readJson(req) {
   return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (c) => { data += c; if (data.length > MAX_BODY) { reject(new Error('body too large')); req.destroy(); } });
-    req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch (e) { reject(e); } });
+    let data = '', tooBig = false;
+    // past the limit: stop collecting and answer 400 (the reply closes the connection, see send*); destroying
+    // the socket here would leave the caller with a dropped connection instead of an error
+    req.on('data', (c) => { if (tooBig) return; data += c; if (data.length > MAX_BODY) { tooBig = true; data = ''; reject(new Error('body too large')); } });
+    req.on('end', () => { if (tooBig) return; try { resolve(JSON.parse(data || '{}')); } catch (e) { reject(e); } });
     req.on('error', reject);
   });
 }
 
 function send(res, status, obj) {
   res.statusCode = status;
+  if (!res.req?.complete) res.setHeader('Connection', 'close');     // an unread (too large) body is not drained
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-store');
   res.end(JSON.stringify(obj));
@@ -227,6 +230,8 @@ export function agentProxy() {
       const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
       if (recent.length >= MAX_PER_MINUTE) return send(res, 429, { error: 'rate limit: too many requests' });
       recent.push(now); hits.set(ip, recent);
+      // forget visitors who have been quiet for a minute, so the table does not grow without bound
+      if (hits.size > 1000) for (const [k, v] of hits) if (now - v[v.length - 1] >= 60_000) hits.delete(k);
 
       let body;
       try { body = await readJson(req); } catch { return send(res, 400, { error: 'bad or too large JSON' }); }

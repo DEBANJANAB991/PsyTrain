@@ -1,5 +1,5 @@
 import {
-  AGENT_TOOLS, BEHAVIOR_META, BEHAVIOR_KEYS, EMOTION_NAMES, GAZE_NAMES, GESTURE_NAMES, ARM_NAMES,
+  AGENT_TOOLS, LIVE_TOOL_NAMES, BEHAVIOR_META, BEHAVIOR_KEYS, EMOTION_NAMES, GAZE_NAMES, GESTURE_NAMES, ARM_NAMES,
   TRAIT_NAMES, EVENT_NAMES, CONVERSATION_STATES, STATE_NAMES, MODE_STATES, NORMAL_BASE, modeStates
 } from '../shared/agent-tools.js';
 import { PRESETS } from './personality.js';
@@ -15,6 +15,13 @@ const round = (x) => Math.round(x * 100) / 100;
 export function createAgent({ affect, personality }) {
   const check = (value, list, what) => {
     if (!list.includes(value)) throw new Error(`unknown ${what} "${value}". Valid: ${list.join(', ')}`);
+  };
+  /** An optional 0..1 argument: undefined stays undefined, a non-number is an error, out of range is clamped. */
+  const unit = (v, what) => {
+    if (v === undefined) return undefined;
+    const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+    if (typeof n !== 'number' || !Number.isFinite(n)) throw new Error(`${what} must be a number from 0 to 1, got ${JSON.stringify(v)}`);
+    return Math.max(0, Math.min(1, n));
   };
   let convState = { state: 'engaged', strength: 0 };     // set by set_state
 
@@ -44,6 +51,7 @@ export function createAgent({ affect, personality }) {
         throw new Error('give at least one of: preset, traits, variability, emotion, intensity');
       }
       if (a.emotion !== undefined) check(a.emotion, EMOTION_NAMES, 'emotion');
+      a = { ...a, intensity: unit(a.intensity, 'intensity') };
       if (a.preset !== undefined) personality.setPreset(a.preset, { applyEmotion: a.emotion === undefined });
       if (a.traits !== undefined) personality.setTraits(a.traits);
       if (a.variability !== undefined) personality.setVariability(a.variability);
@@ -75,12 +83,13 @@ export function createAgent({ affect, personality }) {
       if (a.gaze !== undefined) check(a.gaze, GAZE_NAMES, 'gaze');
       if (a.gesture !== undefined) check(a.gesture, GESTURE_NAMES, 'gesture');
       if (a.emotion === undefined && a.intensity === undefined && a.gaze === undefined && a.gesture === undefined) throw new Error('give at least one of: emotion, intensity, gaze, gesture');
-      affect.setAffect({ emotion: a.emotion, intensity: a.intensity, gaze: a.gaze, gesture: a.gesture });
+      affect.setAffect({ emotion: a.emotion, intensity: unit(a.intensity, 'intensity'), gaze: a.gaze, gesture: a.gesture });
       return state();
     },
 
     trigger_event: (a) => {
-      const r = personality.trigger(a.event, a.strength ?? 0.7);
+      check(a.event, EVENT_NAMES, 'event');
+      const r = personality.trigger(a.event, unit(a.strength, 'strength') ?? 0.7);
       return { reaction: r, ...state() };
     },
 
@@ -91,7 +100,7 @@ export function createAgent({ affect, personality }) {
     set_state: (a) => {
       check(a.state, STATE_NAMES, 'state');
       const st = CONVERSATION_STATES[a.state];
-      const k = Math.max(0, Math.min(1, Number(a.strength ?? 0.7)));
+      const k = unit(a.strength, 'strength') ?? 0.7;
       const base = personality.allPresets()[personality.name.replace('*', '')] || {};
       const emotion = st.emotion ?? base.emotion ?? 'neutral';
       const intensity = st.emotion ? Math.max(0.2, Math.min(0.95, st.intensity * (0.5 + k))) : (base.intensity ?? 0.5);
@@ -368,6 +377,12 @@ export class LiveDirector {
       const uses = j.content.filter((b) => b.type === 'tool_use');
       if (!uses.length) break;
       const results = uses.map((u) => {
+        // the live director gets only LIVE_TOOLS from the server; anything else it names is refused here too
+        if (!LIVE_TOOL_NAMES.includes(u.name)) {
+          const result = { ok: false, error: `tool "${u.name}" is not available during a live conversation. Valid: ${LIVE_TOOL_NAMES.join(', ')}` };
+          calls.push({ name: u.name, args: u.input, result });
+          return { type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(result), is_error: true };
+        }
         const args = u.name === 'set_affect' ? liveAffect(u.input)
           : u.name === 'set_state' ? { ...u.input, state: this._fit(u.input?.state) } : u.input;
         const result = this.agent.execute(u.name, args);
