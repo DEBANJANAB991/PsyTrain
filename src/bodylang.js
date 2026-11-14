@@ -94,29 +94,35 @@ export class BodyLanguage {
     if (f > 0.01) {
       for (const [side, sgn, s2] of [['Left', 1, 0], ['Right', -1, 5]]) {
         const hand = this._d(side + 'Hand');
-        hand.x += f * 0.28 * noise(t * 1.4, sd + s2);
-        hand.z += f * 0.22 * noise(t * 1.1, sd + s2 + 1);
+        // Keep the hand supported by the thigh. Tension should read as a small weight shift at the
+        // wrist, not as a large bend that makes the fingers hover or spear into the leg.
+        hand.x += f * 0.12 * (0.6 * noise(t * 1.4, sd + s2) - 0.4);
+        hand.z += f * 0.08 * noise(t * 1.1, sd + s2 + 1);
         const fore = this._d(side + 'ForeArm');
-        fore.x += f * 0.10 * noise(t * 0.9, sd + s2 + 2);
-        fore.z += sgn * f * 0.08 * noise(t * 0.7, sd + s2 + 3);
+        fore.x += f * 0.04 * (0.6 * noise(t * 0.9, sd + s2 + 2) - 0.4);
+        fore.z += sgn * f * 0.035 * noise(t * 0.7, sd + s2 + 3);
         const arm = this._d(side + 'Arm');
-        arm.y += f * 0.05 * noise(t * 0.6, sd + s2 + 4);
-        // finger picking / thumb rubbing: bursts with a gently varying rhythm (about 1.2 to 2 per second)
-        const pick = burst(t, sd + s2 + 6, 0.35 + 0.5 * f, 11);
-        const osc = 0.5 + 0.5 * Math.sin(this._osc('pick' + side, 1.6 + 0.4 * noise(t * 0.3, s2), dt));
-        this._d(side + 'HandThumb1').x += f * 0.35 * pick * osc + f * 0.1 * noise(t * 2, s2);
-        this._d(side + 'HandThumb2').x += f * 0.25 * pick * osc;
-        this._d(side + 'HandIndex1').x += f * 0.30 * (0.3 + 0.7 * pick) * (0.5 + 0.5 * noise(t * 2.2, s2 + 8));
-        this._d(side + 'HandIndex2').x += f * 0.22 * pick * osc;
-        this._d(side + 'HandMiddle1').x += f * 0.15 * noise(t * 1.7, s2 + 9);
-        this._d(side + 'HandRing2').x += f * 0.12 * noise(t * 1.9, s2 + 10);
+        arm.y += f * 0.02 * noise(t * 0.6, sd + s2 + 4);
+        // Finger picking / thumb rubbing. The base pose already has a natural curl, so these are
+        // deliberately small and affect adjacent joints together rather than making claw shapes.
+        const pick = burst(t, sd + s2 + 6, 0.28 + 0.35 * f, 11);
+        const osc = 0.5 + 0.5 * Math.sin(this._osc('pick' + side, 1.4 + 0.3 * noise(t * 0.3, s2), dt));
+        this._d(side + 'HandThumb1').x += f * 0.10 * pick * osc + f * 0.025 * noise(t * 2, s2);
+        this._d(side + 'HandThumb2').x += f * 0.07 * pick * osc;
+        this._d(side + 'HandIndex1').x += f * 0.08 * (0.3 + 0.7 * pick) * (0.5 + 0.5 * noise(t * 2.2, s2 + 8));
+        this._d(side + 'HandIndex2').x += f * 0.06 * pick * osc;
+        this._d(side + 'HandMiddle1').x += f * 0.035 * noise(t * 1.7, s2 + 9);
+        this._d(side + 'HandRing2').x += f * 0.025 * noise(t * 1.9, s2 + 10);
       }
-      // wringing: forearms rock against each other in bursts
-      const wring = burst(t, sd + 20, f * 0.7, 18) * Math.sin(this._osc('wring', 0.9, dt));
-      this._d('LeftForeArm').z += f * 0.10 * wring;
-      this._d('RightForeArm').z -= f * 0.10 * wring;
-      this._d('LeftHand').z += f * 0.2 * wring;
-      this._d('RightHand').z -= f * 0.2 * wring;
+      // Only clasped hands can wring against one another. Resting hands make smaller independent
+      // movements above; applying this motion while they are apart unnaturally rolls both wrists.
+      if (b.arms === 'clasped') {
+        const wring = burst(t, sd + 20, f * 0.55, 18) * Math.sin(this._osc('wring', 0.8, dt));
+        this._d('LeftForeArm').z += f * 0.04 * wring;
+        this._d('RightForeArm').z -= f * 0.04 * wring;
+        this._d('LeftHand').z += f * 0.06 * wring;
+        this._d('RightHand').z -= f * 0.06 * wring;
+      }
     }
 
     // ---- foot tap & knee bounce ----

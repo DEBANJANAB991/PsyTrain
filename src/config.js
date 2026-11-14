@@ -4,7 +4,7 @@
 export const ROOM = {
   eyeHeight: 1.2,          // seated eye level of the student (m); XR 'local' space is lifted to this
   patientDistance: 1.4,    // student eye -> patient (m)
-  seatHeight: 0.46,        // chair seat surface height (m)
+  seatHeight: 0.501,        // chair seat surface (m), fitted so the 90° seated pose puts both soles on y=0
   width: 4.5, depth: 5, height: 2.7
 };
 
@@ -133,45 +133,72 @@ export const AVATAR = AVATARS[AVATAR_KEY];
 // ---------------------------------------------------------------------------------------------
 // Seated base pose (derived from TalkingHead's 'straight' pose with new hips/legs/feet/arms).
 // ---------------------------------------------------------------------------------------------
+// Relaxed, not military-straight: the pelvis tips back slightly, the spine keeps a shallow natural
+// curve, and the knees remain about hip-width apart instead of collapsing inward.
 export const SEATED_POSE = {
-  'Hips.position': { x: 0, y: 0.60, z: 0 },
-  'Hips.rotation': { x: 0.0, y: 0, z: 0 },
-  'Spine.rotation': { x: -0.05, y: 0, z: 0 },
-  'Spine1.rotation': { x: -0.02, y: 0, z: 0 },
-  'Spine2.rotation': { x: 0.02, y: 0, z: 0 },
-  'Neck.rotation': { x: 0.05, y: 0, z: 0 },
-  'Head.rotation': { x: 0.03, y: 0, z: 0 },
-  'LeftUpLeg.rotation': { x: -1.5, y: -0.08, z: 3.1 },
-  'RightUpLeg.rotation': { x: -1.5, y: 0.08, z: -3.1 },
-  'LeftLeg.rotation': { x: -1.5, y: 0, z: 0 },
-  'RightLeg.rotation': { x: -1.5, y: 0, z: 0 },
-  'LeftFoot.rotation': { x: 1.4, y: 0, z: 0 },
-  'RightFoot.rotation': { x: 1.4, y: 0, z: 0 }
+  'Hips.position': { x: 0, y: 0.629, z: 0 },
+  'Hips.rotation': { x: -0.055, y: 0, z: 0 },
+  'Spine.rotation': { x: 0.025, y: 0, z: 0 },
+  'Spine1.rotation': { x: 0.045, y: 0, z: 0 },
+  'Spine2.rotation': { x: 0.035, y: 0, z: 0 },
+  'Neck.rotation': { x: 0.0, y: 0, z: 0 },
+  'Head.rotation': { x: -0.02, y: 0, z: 0 },
+  'LeftUpLeg.rotation': { x: -1.42, y: -0.08, z: -3.10 },
+  'RightUpLeg.rotation': { x: -1.42, y: 0.08, z: 3.10 },
+  // The lower legs rotate a true quarter turn from the thighs. The ankle angles are fitted against
+  // the avatar's actual outsole vertices, rather than the foot bones, so the complete shoes lie flat.
+  'LeftLeg.rotation': { x: -Math.PI / 2, y: 0, z: 0 },
+  'RightLeg.rotation': { x: -Math.PI / 2, y: 0, z: 0 },
+  'LeftFoot.rotation': { x: 1.06, y: 0.1, z: 0 },
+  'RightFoot.rotation': { x: 1.06, y: -0.1, z: 0 }
 };
 Object.assign(SEATED_POSE, AVATAR.seatedPose);
 
-// Arm / hand placements. 'rest' = hands on thighs. Applied on top of SEATED_POSE.
+// Arm / hand placements, applied on top of SEATED_POSE. Each was fitted against the avatar's own thigh and
+// torso surfaces so the hands rest ON the body instead of inside it, with the elbows hanging near the body.
+// The two sides are not exact mirrors because TalkingHead's base pose and the rig are slightly asymmetric.
 export const ARMS = {
+  // Hands resting on the thighs, palms down. This pair is a true anatomical mirror. TalkingHead's
+  // stock shoulders are slightly uneven, so the shoulder rotations are included here as well.
   rest: {
-    'LeftArm.rotation': { x: 1.0, y: 0.75, z: -0.1 },
-    'RightArm.rotation': { x: 1.0, y: -0.75, z: 0.1 },
-    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.15 },
-    'RightForeArm.rotation': { x: 0, y: 0, z: -1.15 }
+    'LeftShoulder.rotation': { x: 1.618, y: -0.115, z: -1.568 },
+    'RightShoulder.rotation': { x: 1.618, y: 0.115, z: 1.568 },
+    'LeftArm.rotation': { x: 1.257, y: 0.622, z: 0.113 },
+    'LeftForeArm.rotation': { x: -0.225, y: 0.092, z: 1.043 },
+    'LeftHand.rotation': { x: -0.617, y: 0.380, z: -0.224 },
+    'RightArm.rotation': { x: 1.257, y: -0.622, z: -0.113 },
+    'RightForeArm.rotation': { x: -0.225, y: -0.092, z: -1.043 },
+    'RightHand.rotation': { x: -0.617, y: -0.380, z: 0.224 }
   },
-  // hands held together in the lap
+  // hands held together in the lap, one loosely over the other
   clasped: {
-    'LeftArm.rotation': { x: 1.0, y: 1.0, z: -0.1 },
-    'RightArm.rotation': { x: 1.0, y: -1.0, z: 0.1 },
-    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.75 },
-    'RightForeArm.rotation': { x: 0, y: 0, z: -1.75 }
+    'LeftArm.rotation': { x: 1.105, y: 0.748, z: 0.191 },
+    'LeftForeArm.rotation': { x: -0.432, y: 0.144, z: 1.262 },
+    'LeftHand.rotation': { x: -0.294, y: 1.031, z: 0.419 },
+    'RightArm.rotation': { x: 1.056, y: -0.939, z: -0.182 },
+    'RightForeArm.rotation': { x: 0.135, y: 0.022, z: -1.317 },
+    'RightHand.rotation': { x: -0.372, y: -1.341, z: -0.161 }
   },
-  // forearms folded across the belly
+  // forearms folded below the chest, hands resting on the opposite upper arms
   crossed: {
-    'LeftArm.rotation': { x: 1.0, y: 1.0, z: 0.4 },
-    'RightArm.rotation': { x: 1.0, y: -1.0, z: -0.4 },
-    'LeftForeArm.rotation': { x: 0, y: 0, z: 1.9 },
-    'RightForeArm.rotation': { x: 0, y: 0, z: -1.9 }
+    'LeftArm.rotation': { x: 0.88, y: 0.769, z: 0.755 },
+    'LeftForeArm.rotation': { x: -0.722, y: 0.245, z: 1.933 },
+    'LeftHand.rotation': { x: 0.555, y: -0.783, z: 0.271 },
+    'RightArm.rotation': { x: 0.945, y: -0.873, z: -0.634 },
+    'RightForeArm.rotation': { x: 0.21, y: -0.127, z: -1.499 },
+    'RightHand.rotation': { x: 0.484, y: -0.303, z: -0.519 }
   }
+};
+
+// Relaxed fingers: small extra curl (rad, added to TalkingHead's already-curled base pose) at
+// joints 1 / 2 / 3. Keep this subtle: large values stack with procedural motion and make the
+// knuckles look swollen or clawed, especially when the hands are close together.
+export const HAND_RELAX = {
+  Index:  [0.10, 0.14, 0.08],
+  Middle: [0.13, 0.17, 0.09],
+  Ring:   [0.16, 0.20, 0.11],
+  Pinky:  [0.18, 0.23, 0.12],
+  Thumb:  [0.05, 0.07, 0.04]
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -250,10 +277,10 @@ export const MICRO = {
 export const BODY_DELTAS = {
   neutral: {},
   tense: {
-    'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.22 },
-    'RightShoulder.rotation': { x: 0, y: 0, z: -0.22 },
-    'Spine2.rotation': { x: -0.06, y: 0, z: 0 },
-    'Neck.rotation':   { x: -0.05, y: 0, z: 0 }
+    'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.14 },
+    'RightShoulder.rotation': { x: 0, y: 0, z: -0.14 },
+    'Spine2.rotation': { x: -0.03, y: 0, z: 0 },
+    'Neck.rotation':   { x: -0.025, y: 0, z: 0 }
   },
   anxious: {
     'LeftShoulder.rotation':  { x: 0, y: 0, z: 0.3 },
@@ -336,7 +363,9 @@ export const BODY_DELTAS = {
 // ---------------------------------------------------------------------------------------------
 export const BEHAVIOR = {
   neutral:    { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.25, lookAround: 0.10, gazeStudent: 0.80, blink: 1.0, breath: 1.0, headMotion: 0.5, arms: 'rest' },
-  tense:      { fidget: 0.55, footTap: 0.30, legBounce: 0.15, shift: 0.40, lookAround: 0.25, gazeStudent: 0.45, blink: 1.6, breath: 1.3, headMotion: 0.5, arms: 'clasped' },
+  // Tension reads through raised shoulders and restrained movement. Keeping each hand supported on a
+  // thigh avoids the interwoven, unsupported fingers that made the old tense pose look deformed.
+  tense:      { fidget: 0.40, footTap: 0.30, legBounce: 0.15, shift: 0.32, lookAround: 0.25, gazeStudent: 0.45, blink: 1.6, breath: 1.3, headMotion: 0.5, arms: 'rest' },
   anxious:    { fidget: 0.95, footTap: 0.20, legBounce: 0.70, shift: 0.60, lookAround: 0.65, gazeStudent: 0.30, blink: 2.0, breath: 1.7, headMotion: 0.8, arms: 'clasped' },
   angry:      { fidget: 0.15, footTap: 0.55, legBounce: 0.10, shift: 0.20, lookAround: 0.05, gazeStudent: 0.95, blink: 0.5, breath: 1.4, headMotion: 0.3, arms: 'crossed' },
   sad:        { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.15, blink: 1.2, breath: 0.8, headMotion: 0.2, arms: 'rest' },

@@ -26,7 +26,9 @@ Everything is defined in `src/cases.js`: enable more trait levels in `AVAILABLE_
 The traits plus the situation's body language (behaviour ranges, starting emotion, arm posture) are registered as a
 personality with `Personality.define()` when the room loads. They change face, posture, gaze and body language, not the voice.
 
-Desktop: drag to look around from the student's seat (`?orbit=1` orbits around the patient instead).
+Desktop: drag to look around from the student's seat. Use **Move camera** to orbit, right-drag to pan,
+scroll to zoom, reset the view, or save the canvas as a PNG (`?orbit=1` starts in this mode).
+The **Chair** colour picker tints the standard chair material while preserving its texture.
 Turn about 25° right to see the patient and the **SKID notes** form side by side (`src/skid.js`). It autosaves per case in `localStorage` and is not
 shown inside VR. The `?debug=1` panel has 4 mood buttons, an intensity
 slider, 3 gaze buttons and a nod. All of them call `affect.setAffect(...)`.
@@ -247,7 +249,7 @@ Echo: as in `talk.py`, the microphone sends silence while she speaks (plus 0.6 s
 not taken as your turn; wait until she finishes. Tick "I'm using headphones" under the button to keep the mic open
 and be able to interrupt her (the choice is remembered in the browser).
 
-**Body details.** `src/contacts.js` keeps the hands and fingers on top of the thighs instead of inside them: it measures the thighs once from the avatar's own vertices, then lifts the upper arm just enough each frame (one pass, about 0.1 ms, no per-frame allocations; `?nocontacts=1` turns it off). The body layer (`src/bodylang.js`) eases behaviour changes and uses phase-continuous oscillators, so rhythms no longer speed up over a long session or jump when a mood changes. The patient model also writes a body cue (`prompts/body.txt`) at the start of every answer; the orchestrator removes it before the words are spoken and sends it to the page through server-sent events (`/api/orchestrator/events`), so the body state is set before the audio is heard and the gesture lands on the first word.
+**Body details.** `src/contacts.js` keeps the hands and fingers outside the thighs and torso while preserving the authored stance. It measures those body surfaces once from the avatar's own vertices, then frees a penetrating point with the most local joint: fingers straighten first, then the wrist bends a little, and the elbow moves by under 3°. The shoulder is never moved, so the arm posture stays as authored in `ARMS` (`src/config.js`). Corrections fade during arm-pose changes while both the old and new movement paths remain protected, and `?nocontacts=1` turns the system off. The body layer (`src/bodylang.js`) eases behaviour changes and uses phase-continuous oscillators, so rhythms no longer speed up over a long session or jump when a mood changes. The patient model also writes a body cue (`prompts/body.txt`) at the start of every answer; the orchestrator removes it before the words are spoken and sends it to the page through server-sent events (`/api/orchestrator/events`), so the body state is set before the audio is heard and the gesture lands on the first word.
 
 **Other agents:** the ElevenLabs conversation agent can register the same tools as client tools (same names and
 parameters) and call `patient.agent.execute` from its handler. The schemas are plain JSON in `AGENT_TOOLS`.

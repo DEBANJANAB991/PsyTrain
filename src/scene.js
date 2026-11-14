@@ -51,6 +51,30 @@ export function createScene(container) {
   const { fitToPatient } = built;
   const roomReady = built.ready ?? Promise.resolve();
 
+  // Chair tint is opt-in so the source model keeps its original materials until the user chooses a
+  // colour. Clone materials before editing in case the room model shares one elsewhere.
+  let chairColor = null;
+  const applyChairColor = () => {
+    if (!chairColor || !built.chair) return;
+    built.chair.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData.psytrainChairMaterial) {
+        o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
+        o.userData.psytrainChairMaterial = true;
+      }
+      for (const material of [o.material].flat()) {
+        if (!material.color) continue;
+        material.color.set(chairColor);
+        material.needsUpdate = true;
+      }
+    });
+  };
+  const setChairColor = (value) => {
+    chairColor = new THREE.Color(value).getStyle();
+    applyChairColor();
+  };
+  roomReady.then(applyChairColor).catch(() => {}); // the caller reports room-loading failures
+
   const L = LIGHTING;
   const key = new THREE.DirectionalLight(0xfff6ee, photo ? PHOTO_ROOM.key : L.key);
   key.target.position.set(0, 1.0, patientZ);
@@ -80,26 +104,47 @@ export function createScene(container) {
     scene.add(new THREE.HemisphereLight(0xf2f0ec, 0x7a6550, L.hemisphere));
   }
 
-  // Desktop camera: the student stays seated and drags to look around (turn right for the SKID notes,
-  // see skid.js). ?orbit=1 orbits around the patient's head instead, for debugging.
+  // Desktop camera has two modes. Consultation mode turns in place from the student's chair. Inspection
+  // mode is a normal orbit camera for checking seat contact and taking pictures from any angle.
   const desktopPos = new THREE.Vector3(0, ROOM.eyeHeight, 0);
+  const patientCentre = new THREE.Vector3(0, 0.9, patientZ);
+  const inspectionHome = new THREE.Vector3(0, 1.15, 0.35);
   const controls = new OrbitControls(camera, renderer.domElement);
-  const head = new THREE.Vector3(0, 1.15, patientZ);
   controls.enableDamping = true;
-  const orbit = new URLSearchParams(location.search).has('orbit');
-  if (orbit) {
-    controls.target.copy(head);
-  } else {
-    // orbiting a point 1 cm in front of the eyes turns the view in place
-    controls.target.copy(head).sub(desktopPos).setLength(0.01).add(desktopPos);
-    controls.enableZoom = false;
-    controls.enablePan = false;
-    controls.rotateSpeed = -0.5;   // drag the room, like a 360° photo viewer; half the screen height = 90°
-    controls.minPolarAngle = Math.PI / 2 - 1.0;
-    controls.maxPolarAngle = Math.PI / 2 + 1.0;
-  }
-  camera.position.copy(desktopPos);
-  controls.update();
+  controls.dampingFactor = 0.08;
+  controls.screenSpacePanning = true;
+  let inspectionMode = new URLSearchParams(location.search).has('orbit');
+
+  const resetCamera = () => {
+    if (inspectionMode) {
+      camera.position.copy(inspectionHome);
+      controls.target.copy(patientCentre);
+    } else {
+      camera.position.copy(desktopPos);
+      // Orbiting a point 1 cm in front of the eyes turns the view in place.
+      controls.target.copy(patientCentre).sub(desktopPos).setLength(0.01).add(desktopPos);
+    }
+    controls.update();
+  };
+
+  const configureCamera = (reset = true) => {
+    controls.enableZoom = inspectionMode;
+    controls.enablePan = inspectionMode;
+    controls.rotateSpeed = inspectionMode ? 0.65 : -0.5;
+    controls.panSpeed = 0.8;
+    controls.zoomSpeed = 0.9;
+    controls.minDistance = inspectionMode ? 0.25 : 0;
+    controls.maxDistance = inspectionMode ? 7 : Infinity;
+    controls.minPolarAngle = inspectionMode ? 0.08 : Math.PI / 2 - 1.0;
+    controls.maxPolarAngle = inspectionMode ? Math.PI - 0.08 : Math.PI / 2 + 1.0;
+    if (reset) resetCamera();
+  };
+  const setInspectionMode = (enabled) => {
+    inspectionMode = Boolean(enabled);
+    configureCamera(true);
+    return inspectionMode;
+  };
+  configureCamera(true);
 
   renderer.xr.addEventListener('sessionstart', () => {
     controls.enabled = false;
@@ -109,9 +154,8 @@ export function createScene(container) {
   });
   renderer.xr.addEventListener('sessionend', () => {
     rig.position.set(0, 0, 0);
-    camera.position.copy(desktopPos);
     controls.enabled = true;
-    controls.update();
+    resetCamera();
   });
 
   // Seated view: turn the head to `yaw` (radians, + = right) over `ms`, keeping the current pitch. Used to frame the
@@ -126,7 +170,7 @@ export function createScene(container) {
   };
   const currentYaw = () => { const d = controls.target.clone().sub(camera.position); return Math.atan2(d.x, -d.z); };
   function turnTo(yaw, ms = 600) {
-    if (orbit || renderer.xr.isPresenting) return;
+    if (inspectionMode || renderer.xr.isPresenting) return;
     cancelAnimationFrame(turning);
     const from = currentYaw(), t0 = performance.now();
     if (ms <= 0) return lookYaw(yaw);
@@ -150,5 +194,31 @@ export function createScene(container) {
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
 
-  return { THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient, roomReady, turnTo, vr: { button: vrButton, supported: vrSupported } };
+  const savePhoto = () => {
+    if (renderer.xr.isPresenting) return Promise.reject(new Error('Exit VR before saving a photo.'));
+    renderer.render(scene, camera);
+    return new Promise((resolve, reject) => {
+      renderer.domElement.toBlob((blob) => {
+        if (!blob) return reject(new Error('The browser could not capture the canvas.'));
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `psytrain-patient-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        resolve();
+      }, 'image/png');
+    });
+  };
+
+  return {
+    THREE, renderer, scene, camera, rig, controls, patientAnchor, patientZ, fitToPatient, roomReady, turnTo,
+    cameraTools: {
+      get enabled() { return inspectionMode; },
+      setInspectionMode,
+      reset: resetCamera,
+      savePhoto
+    },
+    chairTools: { setColor: setChairColor },
+    vr: { button: vrButton, supported: vrSupported }
+  };
 }

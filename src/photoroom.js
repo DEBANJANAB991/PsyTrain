@@ -45,6 +45,19 @@ export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair' } = {
     ? buildWheelchair(chair, add, { brushed: new THREE.MeshStandardMaterial({ color: 0xc8c8c8, metalness: 1, roughness: 0.3 }) }, ROOM.seatHeight)
     : null;
 
+  // The key light comes from behind the patient and cannot make a strong shadow directly beneath the
+  // pelvis. A subtle, blurred seat shadow supplies that missing contact cue without darkening the avatar.
+  if (!wheelchair) {
+    const seatShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 0.38),
+      new THREE.MeshBasicMaterial({ map: seatContactTexture(), transparent: true, depthWrite: false, toneMapped: false })
+    );
+    seatShadow.rotation.x = -Math.PI / 2;
+    seatShadow.position.set(0, ROOM.seatHeight + 0.006, 0.015);
+    seatShadow.renderOrder = 2;
+    chair.add(seatShadow);
+  }
+
   // ---- loading ----------------------------------------------------------------------------------------
   const photo = new THREE.TextureLoader().loadAsync(P.photo).then((tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -77,7 +90,20 @@ export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair' } = {
     m.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = true; o.receiveShadow = true;
-      if (o.material.map) o.material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      for (const material of [o.material].flat()) {
+        if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        // The scanned roughness map produces a broad pale reflection under the bright room HDR. A
+        // matte leather response keeps the brown texture visible and stops the seat reading as white.
+        if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+          material.metalness = 0;
+          material.metalnessMap = null;
+          material.roughness = 0.86;
+          material.roughnessMap = null;
+          material.envMapIntensity = 0.5;
+          if ('clearcoat' in material) material.clearcoat = 0;
+          material.needsUpdate = true;
+        }
+      }
     });
     chair.add(m);
   });
@@ -94,6 +120,20 @@ export function buildPhotoRoom(scene, renderer, patientZ, { seat = 'chair' } = {
     room, chair, ready, keyFrom,
     fitToPatient: (head) => wheelchair?.fitToPatient(head)
   };
+}
+
+function seatContactTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(64, 64, 4, 64, 64, 62);
+  gradient.addColorStop(0, 'rgba(0,0,0,0.42)');
+  gradient.addColorStop(0.45, 'rgba(0,0,0,0.25)');
+  gradient.addColorStop(0.78, 'rgba(0,0,0,0.08)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(canvas);
 }
 
 function contactTexture() {

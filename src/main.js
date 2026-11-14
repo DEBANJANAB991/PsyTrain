@@ -18,7 +18,7 @@ import * as cfg from './config.js';
 
 const status = document.getElementById('status');
 const app = document.getElementById('app');
-const { renderer, scene, camera, patientAnchor, patientZ, controls, fitToPatient, roomReady, turnTo, vr } = createScene(app);
+const { renderer, scene, camera, patientAnchor, patientZ, controls, fitToPatient, roomReady, turnTo, cameraTools, chairTools, vr } = createScene(app);
 const params = new URLSearchParams(location.search);
 // session switches from the landing page: ?hints=1 shows hints on a board behind the patient (src/hints.js),
 // ?debug=1 adds the control panel and the orchestrator's mode label
@@ -36,6 +36,46 @@ skid.onToggle((open) => turnTo(open ? skid.fitYaw(camera) : 0));
 let lookedAround = false;
 controls.addEventListener('start', () => { lookedAround = true; });
 window.addEventListener('resize', () => { if (!lookedAround && skid.isOpen) turnTo(skid.fitYaw(camera), 0); });
+
+// Inspection/photo camera. It is intentionally available outside debug mode so pose problems can be
+// photographed from the side or rear without opening developer tools or editing the URL.
+const cameraModeButton = document.getElementById('camera-mode');
+const cameraResetButton = document.getElementById('camera-reset');
+const cameraSaveButton = document.getElementById('camera-save');
+const cameraHelp = document.getElementById('camera-help');
+const chairColorControl = document.getElementById('chair-color-control');
+const chairColorInput = document.getElementById('chair-color');
+chairColorControl.hidden = cfg.PATIENT.seat === 'wheelchair';
+chairColorInput.addEventListener('input', () => chairTools.setColor(chairColorInput.value));
+const showCameraMode = () => {
+  const on = cameraTools.enabled;
+  cameraModeButton.setAttribute('aria-pressed', String(on));
+  cameraModeButton.textContent = on ? 'Exit camera mode' : 'Move camera';
+  cameraResetButton.hidden = !on;
+  cameraSaveButton.hidden = !on;
+  cameraHelp.hidden = !on;
+};
+cameraModeButton.addEventListener('click', () => {
+  const on = cameraTools.setInspectionMode(!cameraTools.enabled);
+  lookedAround = on;
+  if (!on) {
+    lookedAround = false;
+    turnTo(skid.isOpen ? skid.fitYaw(camera) : 0, 0);
+  }
+  showCameraMode();
+});
+cameraResetButton.addEventListener('click', () => cameraTools.reset());
+cameraSaveButton.addEventListener('click', async () => {
+  const label = cameraSaveButton.textContent;
+  cameraSaveButton.disabled = true;
+  cameraSaveButton.textContent = 'Saving…';
+  try { await cameraTools.savePhoto(); }
+  catch (error) { console.error(error); cameraSaveButton.textContent = 'Capture failed'; }
+  finally {
+    setTimeout(() => { cameraSaveButton.disabled = false; cameraSaveButton.textContent = label; }, 900);
+  }
+});
+showCameraMode();
 // patient + Big Five + situation chosen on the landing page (index.html),
 // e.g. ?patient=young-woman&extraversion=high&situation=distracted
 const session = selectedSession();
@@ -52,7 +92,7 @@ let conversation = null, liveDirector = null, modeWatcher = null, hints = null, 
     });
     affect = new Affect(head);
     body = new BodyLanguage(head, affect);
-    contacts = new Contacts(head);
+    contacts = new Contacts(head, affect);
     if (new URLSearchParams(location.search).has('nocontacts')) contacts.enabled = false;
     // the student = the camera (desktop) or the headset (XR): she looks at where you really are
     gaze = new Gaze(head, affect, (v) => {
@@ -111,7 +151,7 @@ let conversation = null, liveDirector = null, modeWatcher = null, hints = null, 
     setTimeout(() => (status.style.display = 'none'), 1500);
 
     // Public handle for console tuning, tests and the later ElevenLabs bridge (track B).
-    window.patient = { cfg, head, affect, body, contacts, gaze, voice, personality, agent, director, conversation, liveDirector, modeWatcher, hints, hintBoard, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls };
+    window.patient = { cfg, head, affect, body, contacts, gaze, voice, personality, agent, director, conversation, liveDirector, modeWatcher, hints, hintBoard, say: (t, o) => voice.speak(t, o), setAffect: (a) => affect.setAffect(a), THREE, scene, camera, controls, cameraTools, chairTools };
   } catch (err) {
     console.error(err);
     status.textContent = 'Failed to load patient: ' + err.message;

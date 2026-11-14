@@ -1,5 +1,5 @@
 import {
-  SEATED_POSE, ARMS, BODY_DELTAS, FACE, MICRO, BEHAVIOR,
+  SEATED_POSE, ARMS, HAND_RELAX, BODY_DELTAS, FACE, MICRO, BEHAVIOR,
   EMOTIONS, GAZES, GESTURES
 } from './config.js';
 
@@ -162,6 +162,34 @@ export class Affect {
     for (const [k, v] of Object.entries(this.poseCache)) base[k] = { ...v };
     for (const [k, v] of Object.entries(SEATED_POSE)) base[k] = { ...v };
     for (const [k, v] of Object.entries(ARMS[arms] || ARMS.rest)) base[k] = { ...v };
+
+    // TalkingHead's stock pose contains visibly different left/right finger rotations. Average each
+    // mirrored pair before adding the relaxed curl so matching fingers have the same silhouette.
+    for (const finger of Object.keys(HAND_RELAX)) {
+      for (let joint = 1; joint <= 3; joint++) {
+        const leftKey = `LeftHand${finger}${joint}.rotation`;
+        const rightKey = `RightHand${finger}${joint}.rotation`;
+        const left = base[leftKey], right = base[rightKey];
+        if (!left || !right) continue;
+        const x = (left.x + right.x) / 2;
+        const y = (left.y - right.y) / 2;
+        const z = (left.z - right.z) / 2;
+        base[leftKey] = { x, y, z };
+        base[rightKey] = { x, y: -y, z: -z };
+      }
+    }
+
+    // Relaxed, softly curled fingers (fingers curl about x; the thumb curls about z, mirrored per side,
+    // as in TalkingHead's own fist gesture)
+    for (const [side, sgn] of [['Left', -1], ['Right', 1]]) {
+      for (const [finger, curl] of Object.entries(HAND_RELAX)) {
+        curl.forEach((c, i) => {
+          const p = base[`${side}Hand${finger}${i + 1}.rotation`];
+          if (!p) return;
+          if (finger === 'Thumb') p.z += sgn * c; else p.x += c;
+        });
+      }
+    }
     return base;
   }
 
