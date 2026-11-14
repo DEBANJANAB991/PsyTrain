@@ -25,6 +25,8 @@ import { renderFeedback } from './feedback.js';
 import { analyseCoaching, turnsFromAssessment } from './coaching.js';
 import { buildIssueTimeline } from './issues.js';
 import { DEMO_ASSESSMENT, demoOptions } from './demo.js';   // temporary demo fallback (empty transcript only)
+import { createHistoryStore } from './history.js';
+import { createProgressDashboard } from './progress.js';
 // the teammates' hints for difficult patients, bundled as-is (read only; the file is not modified)
 import hints from '../../ai-patient-voice/hints.json';
 
@@ -91,8 +93,39 @@ export function mountMirror() {
   const fbStatus = el('span', { class: 'mirror-muted', role: 'status', 'aria-live': 'polite' });
   const fbPanel = el('div', { class: 'mirror-fb-panel' });
   const fbContent = el('div', { class: 'mirror-fb-content', hidden: true });
+  const progressView = el('div', { class: 'mirror-progress', hidden: true });   // My Progress (progress.js)
   feedback.append(el('div', { class: 'mirror-feedback-bar' },
-    el('button', { class: 'mirror-btn', type: 'button', onclick: backToPatient }, '↑ Back to patient'), fbStatus), fbPanel, fbContent);
+    el('button', { class: 'mirror-btn', type: 'button', onclick: backToPatient }, '↑ Back to patient'), fbStatus), fbPanel, fbContent, progressView);
+
+  // ---- My Progress: this browser's saved MIRROR sessions, re-read from MIRROR (read-only) ----------------
+  const history = createHistoryStore();
+  const dashboard = createProgressDashboard({
+    api, history, container: progressView,
+    currentSessionId: () => state.sessionId,
+    onBack: hideProgress,
+    onTryAgain: openLandingPage,
+    // a saved consultation's feedback: its stored assessment through the same renderer, nothing is re-assessed
+    // demoLabel is set only for the DEMO DATA dashboard: the renderer then marks every part as simulated
+    renderSaved: (holder, assessment, backToProgress, demoLabel = null) => renderFeedback(holder, assessment,
+      { ...savedFeedbackOptions(assessment), onMyProgress: backToProgress, ...(demoLabel ? { demo: demoLabel } : {}) })
+  });
+  let statusBeforeProgress = '';
+  function showProgress() {
+    statusBeforeProgress = fbStatus.textContent;
+    fbStatus.textContent = 'My Progress · saved assessments';
+    fbContent.hidden = true;
+    fbPanel.hidden = true;
+    progressView.hidden = false;
+    feedback.dataset.view = 'progress';
+    dashboard.open();
+  }
+  function hideProgress() {
+    progressView.hidden = true;
+    delete feedback.dataset.view;
+    fbStatus.textContent = statusBeforeProgress;
+    if (feedback.dataset.state === 'ready') fbContent.hidden = false; else fbPanel.hidden = false;
+    feedback.scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
 
   // ---- MIRROR case for this patient (read-only GET; no consultation is created) -----------------
   async function loadScenario() {
@@ -130,7 +163,8 @@ export function mountMirror() {
       // TEMPORARY demo fallback (demo.js): a predefined, clearly labelled demo assessment, rendered locally with
       // the existing feedback renderer. Nothing is submitted, saved or sent to Bedrock.
       try {
-        renderFeedback(fbContent, DEMO_ASSESSMENT, demoOptions(hints, openLandingPage));
+        // the demo is never added to My Progress (history.add only runs for a saved MIRROR assessment)
+        renderFeedback(fbContent, DEMO_ASSESSMENT, { ...demoOptions(hints, openLandingPage), onMyProgress: showProgress });
         setFeedbackState('ready', 'Demo assessment · simulated feedback, not based on a real consultation · not saved');
         feedback.dataset.demo = 'true';
       } catch (e) {
@@ -185,6 +219,7 @@ export function mountMirror() {
     try {
       const { sessionId, assessment } = await sub.submit();
       state.sessionId = sessionId;
+      history.add(sessionId);   // MIRROR saved and returned this assessment: it now belongs to My Progress
       renderAssessment(sessionId, assessment);
     } catch (e) {
       const retry = sub.isRetryable(e);
@@ -200,6 +235,8 @@ export function mountMirror() {
   // ---- feedback: the saved MIRROR assessment, rendered natively (feedback.js) ------------------------
   function setFeedbackState(kind, message, retry = null, retryNote = '') {
     feedback.dataset.state = kind;
+    progressView.hidden = true;
+    delete feedback.dataset.view;
     if (kind === 'ready') {
       fbStatus.textContent = message;
       fbPanel.replaceChildren();
@@ -227,20 +264,25 @@ export function mountMirror() {
   function renderAssessment(sessionId, assessment) {
     try {
       if (assessment?.session_id !== sessionId) throw new Error('MIRROR returned an assessment for a different session.');
-      // coaching is derived from the transcript MIRROR saved with this assessment; a coaching error never hides the assessment
-      let coaching = null;
-      try { coaching = analyseCoaching(turnsFromAssessment(assessment), hints); }
-      catch (e) { console.warn('[mirror] personalised coaching unavailable', e); coaching = { status: 'insufficient_evidence', items: [], tips: [], reason: 'The coaching analysis could not be completed.' }; }
-      // issue timeline from the same saved transcript + assessment + coaching result; an error never hides the assessment
-      let issues = null;
-      try { issues = buildIssueTimeline(assessment, turnsFromAssessment(assessment), coaching); }
-      catch (e) { console.warn('[mirror] issue timeline unavailable', e); issues = { status: 'insufficient', located: [], unlocated: [] }; }
-      renderFeedback(fbContent, assessment, { coaching, issues, onTryAgain: openLandingPage });
+      renderFeedback(fbContent, assessment, { ...savedFeedbackOptions(assessment), onMyProgress: showProgress });
       setFeedbackState('ready', `Saved assessment · Session ${sessionId}`);
     } catch (e) {
       setFeedbackState('error', `The saved assessment could not be displayed. ${describeError(e)}`, retryDisplay,
         'Retrying only reloads the saved assessment; the consultation is not submitted again.');
     }
+  }
+
+  /** Renderer options for a saved assessment (this consultation, or one opened from My Progress). */
+  function savedFeedbackOptions(assessment) {
+    // coaching is derived from the transcript MIRROR saved with this assessment; a coaching error never hides the assessment
+    let coaching = null;
+    try { coaching = analyseCoaching(turnsFromAssessment(assessment), hints); }
+    catch (e) { console.warn('[mirror] personalised coaching unavailable', e); coaching = { status: 'insufficient_evidence', items: [], tips: [], reason: 'The coaching analysis could not be completed.' }; }
+    // issue timeline from the same saved transcript + assessment + coaching result; an error never hides the assessment
+    let issues = null;
+    try { issues = buildIssueTimeline(assessment, turnsFromAssessment(assessment), coaching); }
+    catch (e) { console.warn('[mirror] issue timeline unavailable', e); issues = { status: 'insufficient', located: [], unlocated: [] }; }
+    return { coaching, issues, onTryAgain: openLandingPage };
   }
 
   async function retryDisplay() {

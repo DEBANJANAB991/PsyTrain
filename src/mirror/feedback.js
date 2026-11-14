@@ -5,9 +5,10 @@
  * Two views: a one-screen summary (shown first: key stats, top strengths and improvements, the first located
  * issue, one next step) and the detailed report below, opened with "See detailed feedback".
  *
- * Detailed report section order: Overall assessment · Communication skills · Patient information · Consultation transcript ·
- * Where communication issues started · Strategy comparison & personalised coaching · Your next practice steps ·
- * Communication frameworks · Progress across attempts (only with comparison data) · [Data quality] · Try again.
+ * Detailed report section order: Consultation overview · Communication performance · Patient information discovered ·
+ * Moments that mattered · Personalised coaching (strategies, general tips, practise next) ·
+ * Full transcript and educational references (frameworks; progress only for genuine saved attempts) · Try again.
+ * With too little conversation (non-demo), scores and achievements are withheld.
  *
  * options (all optional):
  *   coaching         analyseCoaching() result (coaching.js)          issues        buildIssueTimeline() result
@@ -89,8 +90,9 @@ function downloadButton(file, label, action) {
 // ---- one-screen summary (default view); the full report is one click away ----------------------------
 const SUMMARY_ITEMS = 2;   // strengths / improvements shown on the summary
 
-function summaryView(m, options, demo, onDetails) {
-  const strengths = m.overall.strengths.slice(0, SUMMARY_ITEMS);
+function summaryView(m, options, demo, onDetails, limited = false) {
+  // too little conversation: no achievements on the summary either (see renderFeedback)
+  const strengths = limited ? [] : m.overall.strengths.slice(0, SUMMARY_ITEMS);
   const improvements = (m.overall.improvements.length ? m.overall.improvements
     : m.criteria.filter((c) => c.status === 'improvement').map((c) => ({ text: c.name }))).slice(0, SUMMARY_ITEMS);
   const issue = options.issues?.status === 'issues' ? options.issues.located[0] : null;
@@ -118,7 +120,7 @@ function summaryView(m, options, demo, onDetails) {
     m.humanReviewRequired ? h('p', { class: 'fb-note' }, 'Flagged for human review.') : null,
     h('p', { class: 'fb-summary fb-clamp' }, m.overall.summary),
     h('div', { class: 'fb-grid' },
-      h('article', { class: 'fb-card fb-good' }, h('h3', {}, 'What went well'), bullets(strengths, 'Nothing specific was noted.')),
+      h('article', { class: 'fb-card fb-good' }, h('h3', {}, 'What went well'), bullets(strengths, limited ? 'Not enough conversation to assess this.' : 'Nothing specific was noted.')),
       h('article', { class: 'fb-card fb-improve' }, h('h3', {}, 'Work on next'), bullets(improvements, 'No improvement areas were noted.'))),
     issue ? h('article', { class: 'fb-card fb-key-moment', 'data-start-turn': issue.start.number },
       h('div', { class: 'fb-card-head' },
@@ -136,6 +138,7 @@ function summaryView(m, options, demo, onDetails) {
 export function renderFeedback(container, assessment, options = {}) {
   const m = buildFeedbackModel(assessment);
   const demo = options.demo ?? null;
+  const details = options.criterionDetails ?? {};
   const wrap = h('div', { class: 'fb-views' });
   const root = h('div', { class: 'fb', 'data-session-id': m.sessionId, 'data-demo': demo ? 'true' : null, 'data-view': 'details', hidden: true });
   const showView = (detailed) => {
@@ -143,16 +146,21 @@ export function renderFeedback(container, assessment, options = {}) {
     root.hidden = !detailed;
     container.closest('.mirror-feedback')?.scrollIntoView({ behavior: 'auto', block: 'start' });
   };
-  const overview = summaryView(m, options, demo, () => showView(true));
+  // Too little conversation to support a detailed assessment: no scores and no achievements are presented.
+  const doctorTurns = m.transcriptTurns.filter((t) => t.speaker === 'doctor').length;
+  const evidenced = m.criteria.filter((c) => c.score != null && c.evidence.length);
+  const limited = !demo && (doctorTurns < 2 || m.transcriptTurns.length < 4 || (m.criteria.length > 0 && evidenced.length === 0));
+
+  const overview = summaryView(m, options, demo, () => showView(true), limited);
   const back = h('button', { type: 'button', class: 'mirror-btn', 'data-action': 'show-summary' }, '← Back to summary');
   back.addEventListener('click', () => showView(false));
   root.append(h('div', { class: 'fb-details-nav' }, back));
   let n = 0;
   const num = () => String(++n).padStart(2, '0');
+  const turnNumbers = new Map(m.transcriptTurns.map((t) => [t.turnId, t.number]));
 
   if (demo) root.append(h('div', { class: 'fb-demo-banner', role: 'note' }, demo.label));
 
-  // header + metrics
   root.append(h('header', { class: 'fb-hero' },
     h('p', { class: 'fb-eyebrow' }, demo ? 'MIRROR · demo assessment (not saved)' : 'MIRROR · saved assessment'),
     h('h1', {}, 'Your consultation review'),
@@ -161,62 +169,88 @@ export function renderFeedback(container, assessment, options = {}) {
       h('dt', {}, 'Patient'), h('dd', {}, m.patientId ?? 'Not recorded'),
       h('dt', {}, 'Case'), h('dd', {}, m.scenarioId ?? 'Not recorded'),
       h('dt', {}, 'Attempt'), h('dd', {}, m.attempt ?? 'Not recorded')),
-    m.humanReviewRequired ? h('p', { class: 'fb-note' }, 'MIRROR flags this assessment for human review (for example, limited evidence or data-quality warnings).') : null,
-    h('div', { class: 'fb-metrics' },
-      metric('Communication', m.metrics.criteriaTotal ? `${m.metrics.criteriaEvidenced} evidenced` : 'Not scored', m.metrics.criteriaTotal ? `${m.metrics.criteriaTotal} assessed dimensions` : 'No rubric results'),
-      metric('Expected facts discovered', `${m.metrics.factsDiscovered} / ${m.metrics.factsTotal}`, demo ? 'Simulated patient information' : 'From recorded disclosure events'),
-      metric('Duration', m.metrics.duration, m.metrics.statistics ? `${m.metrics.statistics.total_transcript_turns} turns · ${m.metrics.statistics.doctor_turns} yours · ${m.metrics.statistics.patient_turns} patient` : ''),
-      metric('Areas to practise', String(m.metrics.areasToPractise), `${m.metrics.insufficient} need more evidence`))));
+    m.humanReviewRequired ? h('p', { class: 'fb-note' }, 'MIRROR flags this assessment for human review (for example, limited evidence or data-quality warnings).') : null));
 
-  // 1 Overall assessment (qualitative; no overall numerical score)
-  root.append(section(num(), 'Overall assessment', 'Summary', null,
+  // 1 Consultation overview: summary, the three improvement priorities, what went well
+  const priorities = m.overall.improvements.map((i) => ({ text: i.text, evidence: i.evidence }));
+  if (priorities.length < 3) {
+    for (const c of [...m.criteria].filter((x) => x.status === 'improvement').sort((x, y) => (x.score ?? 1) - (y.score ?? 1))) {
+      if (priorities.length >= 3) break;
+      priorities.push({ text: `${c.name}: ${details[c.id]?.recommendation ?? c.explanation}`, evidence: [] });
+    }
+  }
+  root.append(section(num(), 'Consultation overview', 'Consultation Overview', null,
     demoTag(demo),
+    limited ? h('p', { class: 'fb-note fb-limited', 'data-limited': 'true' }, 'There is not enough conversation in this consultation to support a detailed assessment, so scores and achievements are not shown. Hold a longer conversation to get full feedback.') : null,
+    h('div', { class: 'fb-metrics' },
+      metric('Duration', m.metrics.duration, m.metrics.statistics ? `${m.metrics.statistics.total_transcript_turns} turns · ${m.metrics.statistics.doctor_turns} yours` : ''),
+      metric('Patient information', `${m.metrics.factsDiscovered} / ${m.metrics.factsTotal}`, 'expected facts discovered'),
+      limited ? metric('Communication', 'Insufficient evidence', 'not scored')
+        : metric('Communication', m.metrics.criteriaTotal ? `${m.metrics.criteriaEvidenced} / ${m.metrics.criteriaTotal}` : 'Not scored', m.metrics.criteriaTotal ? 'dimensions with evidence' : 'no rubric results'),
+      metric('Areas to practise', String(m.metrics.areasToPractise), m.metrics.insufficient ? `${m.metrics.insufficient} need more evidence` : '')),
     h('p', { class: 'fb-summary' }, m.overall.summary),
-    h('div', { class: `fb-grid${options.learningObjective ? ' fb-grid-3' : ''}` },
-      h('article', { class: 'fb-card fb-good' }, h('h3', {}, 'What you did well'), list(m.overall.strengths, 'No strengths were included in this assessment.')),
-      h('article', { class: 'fb-card fb-improve' }, h('h3', {}, 'Priority improvement areas'), list(m.overall.improvements, 'No improvement areas were included in this assessment.')),
-      options.learningObjective ? h('article', { class: 'fb-card', 'data-learning-objective': 'true' }, h('h3', {}, 'Learning objective for the next consultation'), h('p', {}, options.learningObjective)) : null)));
+    priorities.length ? h('article', { class: 'fb-card fb-priorities', 'data-priorities': 'true' },
+      h('h3', {}, 'Your top improvement priorities'),
+      h('ol', { class: 'fb-priority-list' }, priorities.slice(0, 3).map((i) => h('li', {}, i.text, evidenceList(i.evidence)))),
+      priorities.length > 3 ? h('details', { class: 'fb-evidence' }, h('summary', {}, `More areas to improve · ${priorities.length - 3}`),
+        h('ul', { class: 'fb-list' }, priorities.slice(3).map((i) => h('li', {}, i.text, evidenceList(i.evidence))))) : null) : null,
+    h('div', { class: 'fb-grid' },
+      !limited && m.overall.strengths.length ? h('article', { class: 'fb-card fb-good' }, h('h3', {}, 'What went well'), list(m.overall.strengths, '')) : null,
+      options.learningObjective ? h('article', { class: 'fb-card', 'data-learning-objective': 'true' }, h('h3', {}, 'Learning objective for next time'), h('p', {}, options.learningObjective)) : null)));
 
-  // 2 Communication skills
-  const details = options.criterionDetails ?? {};
-  root.append(section(num(), 'Communication skills', 'The way you connected', 'Each dimension is scored on MIRROR’s 0–1 scale when the assessment includes evidence for it.',
+  // 2 Communication performance (dimension cards; improvement advice collapsed to avoid repeating the priorities)
+  const observations = limited ? m.observations.filter((o) => o.status !== 'positive') : m.observations;
+  root.append(section(num(), 'Communication performance', 'Communication Performance',
+    limited ? 'Scores are withheld because the conversation was too short to evidence these skills.' : 'Each dimension is scored on MIRROR’s 0–1 scale when the assessment includes evidence for it.',
     demoTag(demo),
     m.criteria.length ? h('div', { class: 'fb-grid fb-criteria' }, m.criteria.map((c) => {
       const d = details[c.id];
+      const scored = !limited && c.score != null;
+      const advice = d?.good || d?.recommendation;
       return h('article', { class: 'fb-card', 'data-dimension': c.id },
-        h('div', { class: 'fb-card-head' }, h('div', {}, h('span', { class: 'fb-kicker' }, c.category), h('h3', {}, c.name)), pill(c.status)),
-        d?.level ? h('p', { class: 'fb-demo-level' }, h('strong', {}, d.level), ` · score ${c.score == null ? '–' : c.score.toFixed(2)} / 1.00`) : null,
-        h('div', { class: 'fb-bar', role: 'img', 'aria-label': c.score == null ? 'No score' : `Score ${Math.round(c.score * 100)}%` }, h('span', { style: `width:${c.score == null ? 0 : Math.round(c.score * 100)}%` })),
-        h('small', { class: 'fb-small' }, `${c.score == null ? 'No score' : `Score ${c.score}`} · weight ${c.weight}${c.weightedScore != null ? ` · weighted ${c.weightedScore}` : ''}`),
+        h('div', { class: 'fb-card-head' }, h('div', {}, h('span', { class: 'fb-kicker' }, c.category), h('h3', {}, c.name)), pill(limited ? 'insufficient_evidence' : c.status)),
+        scored ? h('div', { class: 'fb-score-row' },
+          h('div', { class: 'fb-bar', role: 'img', 'aria-label': `Score ${Math.round(c.score * 100)}%` }, h('span', { style: `width:${Math.round(c.score * 100)}%` })),
+          h('span', { class: 'fb-score' }, `${c.score.toFixed(2)}`), d?.level ? h('span', { class: 'fb-level' }, d.level) : null) : null,
         h('p', {}, c.explanation),
-        d?.good ? h('p', { class: 'fb-small' }, h('strong', {}, 'Good practice: '), d.good) : null,
-        d?.recommendation ? h('p', { class: 'fb-small' }, h('strong', {}, 'Recommendation: '), d.recommendation) : null,
+        advice ? h('details', { class: 'fb-evidence' }, h('summary', {}, 'Good practice & how to improve'),
+          d.good ? h('p', { class: 'fb-small' }, h('strong', {}, 'Good practice: '), d.good) : null,
+          d.recommendation ? h('p', { class: 'fb-small' }, h('strong', {}, 'Recommendation: '), d.recommendation) : null) : null,
         evidenceList(c.evidence));
-    })) : empty('No rubric criteria were returned for this consultation.'),
-    m.observations.length ? h('div', { class: 'fb-grid' }, m.observations.map((o) => h('article', { class: 'fb-card' },
+    })) : null,
+    observations.length ? h('div', { class: 'fb-grid' }, observations.map((o) => h('article', { class: 'fb-card' },
       h('div', { class: 'fb-card-head' }, h('h3', {}, o.category), pill(o.status)),
       h('p', {}, o.observation),
       o.why ? h('p', { class: 'fb-small' }, h('strong', {}, 'Why it matters: '), o.why) : null,
       o.suggestion ? h('p', { class: 'fb-small' }, h('strong', {}, 'Try: '), o.suggestion) : null,
-      evidenceList(o.evidence)))) : null));
+      evidenceList(o.evidence)))) : null,
+    !m.criteria.length && !observations.length ? empty('No communication findings were returned for this consultation.') : null));
 
-  // 3 Patient information
-  root.append(section(num(), 'Patient information', 'What surfaced in the story', 'Expected information, organised by what happened in this conversation.',
+  // 3 Patient information discovered
+  root.append(section(num(), 'Patient information', 'Patient Information Discovered', 'Expected information, organised by what happened in this conversation.',
     demoTag(demo),
     h('div', { class: 'fb-grid fb-grid-3' },
       factColumn('Found', 'Discovered', m.information.discovered, 'No facts recorded as discovered.'),
       factColumn('Held back', 'Explored, not fully disclosed', m.information.exploredNotDisclosed, 'None.'),
       factColumn('Still to ask', 'Not explored', m.information.notExplored, 'None.'))));
 
-  // 4 Consultation transcript (full conversation + download)
+  // 4 Moments that mattered
+  if (options.issues) root.append(issuesSection(num(), options.issues, demo));
+
+  // 5 Personalised coaching: strategies, general tips and next practice steps in one place
+  root.append(strategySection(num(), options.coaching, options.strategyDetails ?? {}, m.contextual, demo, turnNumbers,
+    practiceBlock(options.practiceSteps, m.overall.nextSteps)));
+
+  // 6 Full transcript and educational references
   const files = transcriptFiles(m, demo);
-  root.append(section(num(), 'Consultation transcript', 'Stay with the moments', demo ? null : 'Your transcript as saved by MIRROR, with its evidence-linked reflections.',
+  const fw = m.frameworks;
+  root.append(section(num(), 'Transcript and references', 'Full Transcript and Educational References', null,
     demo ? h('div', { class: 'fb-demo-banner fb-demo-banner-small', role: 'note' }, demo.transcriptLabel) : null,
     m.emotions.length ? h('p', { class: 'fb-small' }, 'Simulated patient states (not real measurements): ', m.emotions.map((e) => `${e.state} (${time(e.timestamp)})`).join(' → ')) : null,
     m.transcriptTurns.length ? h('div', { class: 'fb-downloads' },
       downloadButton(files.txt, 'Download transcript (.txt)', 'download-txt'),
       downloadButton(files.json, 'Download transcript (.json)', 'download-json')) : null,
-    h('details', { class: 'fb-transcript', open: true },
+    h('details', { class: 'fb-transcript fb-collapse', 'data-block': 'transcript' },
       h('summary', {}, `Full conversation · ${m.transcriptTurns.length} turns`),
       m.timeline.length ? h('ol', { class: 'fb-timeline' }, m.timeline.map((t) => h('li', { class: `fb-moment fb-${t.kind}${t.speaker ? ' fb-' + t.speaker : ''}`, 'data-turn': t.turnNumber ?? null },
         h('div', { class: 'fb-moment-meta' },
@@ -224,46 +258,29 @@ export function renderFeedback(container, assessment, options = {}) {
           h('time', {}, time(t.timestamp))),
         h('p', {}, t.text),
         t.annotations.map((a) => h('div', { class: 'fb-annotation' }, h('span', { class: 'fb-kicker' }, a.category), h('p', {}, a.explanation),
-          a.suggestion ? h('p', { class: 'fb-small' }, h('strong', {}, 'Try next: '), a.suggestion) : null))))) : empty('No transcript was saved for this consultation.'))));
+          a.suggestion ? h('p', { class: 'fb-small' }, h('strong', {}, 'Try next: '), a.suggestion) : null))))) : empty('No transcript was saved for this consultation.')),
+    h('details', { class: 'fb-collapse', 'data-block': 'frameworks' },
+      h('summary', {}, demo ? 'Communication frameworks · simulated educational mapping' : 'Communication frameworks'),
+      fw ? h('p', { class: 'fb-detail' }, demo ? `Educational context only: a simulated mapping of this demo onto MIRROR's framework crosswalk (${fw.version}). It is not a formal framework assessment and adds no scores.`
+        : `MIRROR's framework crosswalk (${fw.version}). It adds no scores; a domain without evidence is not a negative finding.`) : null,
+      fw?.items.length ? fw.items.map((f) => h('div', { class: 'fb-framework' },
+        h('h3', {}, f.name), h('p', { class: 'fb-small' }, `${f.version}. ${f.description}`),
+        h('div', { class: 'fb-grid' }, f.domains.map((d) => h('article', { class: 'fb-card' },
+          h('div', { class: 'fb-card-head' }, h('h3', {}, d.name), pill(d.status)),
+          h('p', {}, d.explanation),
+          d.mappings.length ? h('p', { class: 'fb-small' }, h('strong', {}, 'Mapped MIRROR criteria: '), d.mappings.map((x) => `${x.criterion} (${x.type})`).join(', ')) : null,
+          d.mappings.some((x) => x.supporting.length) ? h('p', { class: 'fb-small' }, h('strong', {}, 'Supporting frameworks: '), [...new Set(d.mappings.flatMap((x) => x.supporting))].join(', ')) : null,
+          evidenceList(d.evidence)))))) : empty('No framework crosswalk was returned for this consultation.')),
+    // progress only with genuine saved attempts (the demo's fictional attempts are not shown)
+    options.progress?.genuine && options.progress.rows?.length ? progressBlock(options.progress) : null,
+    m.warnings.length ? h('details', { class: 'fb-collapse', 'data-block': 'data-quality' }, h('summary', {}, `Data quality notes · ${m.warnings.length}`),
+      h('ul', { class: 'fb-list' }, m.warnings.map((w) => h('li', {}, `${w.factId} (event ${w.eventId}): ${w.message}`)))) : null));
 
-  // 5 Where communication issues started
-  if (options.issues) root.append(issuesSection(num(), options.issues, demo));
-
-  // 6 Strategy comparison & personalised coaching (+ MIRROR contextual coaching for real consultations)
-  root.append(strategySection(num(), options.coaching, options.strategyDetails ?? {}, m.contextual, demo,
-    new Map(m.transcriptTurns.map((t) => [t.turnId, t.number]))));
-
-  // 7 Your next practice steps
-  root.append(practiceSection(num(), options.practiceSteps, m.overall.nextSteps, demo));
-
-  // 8 Communication frameworks
-  const fw = m.frameworks;
-  root.append(section(num(), 'Communication frameworks', 'Where this sits in the literature',
-    fw ? (demo ? `Educational context only: a simulated mapping of this demo onto MIRROR's framework crosswalk (${fw.version}). It is not a formal framework assessment and adds no scores.`
-      : `MIRROR's framework crosswalk (${fw.version}). It adds no scores; a domain without evidence is not a negative finding.`) : null,
-    demoTag(demo, 'Simulated educational mapping, not an assessment finding'),
-    fw?.items.length ? fw.items.map((f) => h('div', { class: 'fb-framework' },
-      h('h3', {}, f.name), h('p', { class: 'fb-small' }, `${f.version}. ${f.description}`),
-      h('div', { class: 'fb-grid' }, f.domains.map((d) => h('article', { class: 'fb-card' },
-        h('div', { class: 'fb-card-head' }, h('h3', {}, d.name), pill(d.status)),
-        h('p', {}, d.explanation),
-        d.mappings.length ? h('p', { class: 'fb-small' }, h('strong', {}, 'Mapped MIRROR criteria: '), d.mappings.map((x) => `${x.criterion} (${x.type})`).join(', ')) : null,
-        d.mappings.some((x) => x.supporting.length) ? h('p', { class: 'fb-small' }, h('strong', {}, 'Supporting frameworks: '), [...new Set(d.mappings.flatMap((x) => x.supporting))].join(', ')) : null,
-        evidenceList(d.evidence)))))) : empty('No framework crosswalk was returned for this consultation.')));
-
-  // 9 Progress across attempts (only with comparison data)
-  if (options.progress?.rows?.length) root.append(progressSection(num(), options.progress, demo));
-
-  if (m.warnings.length) {
-    root.append(section(num(), 'Data quality', 'Notes on the submitted data', null,
-      h('ul', { class: 'fb-list' }, m.warnings.map((w) => h('li', {}, `${w.factId} (event ${w.eventId}): ${w.message}`)))));
-  }
   if (options.onTryAgain) root.append(nextStepsSection(options));
   wrap.append(overview, root);
   container.replaceChildren(wrap);
   return m;
 }
-
 // ---- Where Communication Issues Started (issues.js result, or the demo's illustrative list) -------------
 const OUTCOME_SHORT = { not_demonstrated: 'not demonstrated', partially_demonstrated: 'partially demonstrated' };
 
@@ -290,7 +307,7 @@ function issueCard(issue) {
     issue.why ? h('p', { class: 'fb-small' }, h('strong', {}, 'Why it matters: '), issue.why) : null,
     issue.suggestion ? h('p', { class: 'fb-small' }, h('strong', {}, 'Try instead: '), issue.suggestion) : null,
     s ? h('p', { class: 'fb-small fb-issue-strategy' }, h('strong', {}, 'Coaching strategy: '), `${s.shortHint} (${OUTCOME_SHORT[s.outcome] ?? s.outcome})`,
-      ' · see Strategy Comparison & Personalised Coaching below.') : null,
+      ' · see Personalised Coaching below.') : null,
     issue.context?.length > 1 ? h('details', { class: 'fb-evidence fb-issue-context' }, h('summary', {}, 'Show the surrounding conversation'),
       h('div', {}, issue.context.map((t) => transcriptLine(t, null, t.number === issue.start.number)))) : null);
 }
@@ -302,13 +319,13 @@ function issuesSection(index, r, demo) {
     h('summary', {}, `Could not be pinpointed in the transcript · ${r.unlocated.length}`),
     h('ul', {}, r.unlocated.map((u) => h('li', { 'data-issue-source': u.source }, h('strong', {}, u.title), ` (${u.source === 'coaching' ? 'coaching' : 'MIRROR assessment'}): ${u.reason}`)))) : null;
   if (r.status !== 'issues') {
-    return section(index, 'Transcript evidence', 'Where Communication Issues Started', detail,
+    return section(index, 'Moments that mattered', 'Moments That Mattered', detail,
       empty(r.status === 'none' || !r.unlocated?.length
         ? 'No specific communication issue could be located in the transcript.'
         : 'No specific communication issue could be located in the transcript; the findings below do not point to a single moment, so the evidence is insufficient to show where they started.'),
       unlocated);
   }
-  return section(index, 'Transcript evidence', 'Where Communication Issues Started', detail,
+  return section(index, 'Moments that mattered', 'Moments That Mattered', detail,
     demoTag(demo, 'Illustrative examples · simulated'),
     h('div', { class: 'fb-issues' }, r.located.map(issueCard)), unlocated);
 }
@@ -376,9 +393,8 @@ function strategyCard(it, d, demo, turnNumbers) {
     coachingEvidence(it.evidence, demo, turnNumbers),
     labelled('Suggested alternative', d.alternative ?? it.improvement),
     labelled('Why this approach works', d.why ?? COACH_WHY[key]),
-    h('div', { class: 'fb-coach-long' }, h('span', { class: 'fb-kicker' }, 'Learning hint'),
-      h('p', { class: 'fb-coach-hint' }, h('strong', {}, it.strategy)),
-      it.longExplanation ? h('p', {}, richText(it.longExplanation)) : null),
+    it.longExplanation ? h('details', { class: 'fb-evidence fb-coach-long' }, h('summary', {}, `Learning hint: ${it.strategy}`),
+      h('p', {}, richText(it.longExplanation))) : h('p', { class: 'fb-coach-hint' }, h('strong', {}, 'Learning hint: '), it.strategy),
     coachingSources(it.sources));
 }
 
@@ -398,49 +414,48 @@ function contextualBlock(cf) {
         h('a', { href: r.url, target: '_blank', rel: 'noopener noreferrer' }, 'Source'))))) : null);
 }
 
-function strategySection(index, c, details, contextual, demo, turnNumbers) {
+function strategySection(index, c, details, contextual, demo, turnNumbers, practice) {
   const detail = demo ? 'Simulated example of MIRROR’s personalised coaching: statuses come from MIRROR’s coaching logic applied to the simulated transcript, not from a real student consultation. Learning hints are quoted exactly from the hints for difficult patients.'
     : 'What each strategy expects, what happened in your conversation and how to improve. Only strategies the transcript supports are shown; learning hints are quoted exactly from the hints for difficult patients.';
   const strategies = !c ? null : c.status !== 'coaching'
     ? empty(`There is insufficient evidence for personalised coaching in this consultation. ${c.reason ?? ''}`.trim())
     : h('div', {},
       h('div', { class: 'fb-grid' }, c.items.map((it) => strategyCard(it, details[`${it.behaviour}-${it.level}`] ?? {}, demo, turnNumbers))),
-      c.tips.length ? h('div', { class: 'fb-coach-tips' }, h('h3', {}, 'General tips for this conversation'),
+      c.tips.length ? h('div', { class: 'fb-coach-tips' }, h('h3', { class: 'fb-subhead' }, 'General tips for this conversation'),
         c.tips.map((t) => h('article', { class: 'fb-card', 'data-tip': t.tip.short_hint },
           h('div', { class: 'fb-card-head' }, h('div', {}, h('span', { class: 'fb-kicker' }, BEHAVIOUR_LABEL[t.behaviour] ?? t.behaviour), h('h3', {}, t.tip.short_hint))),
           h('p', {}, t.reason),
           coachingEvidence(t.evidence, demo, turnNumbers),
-          h('div', { class: 'fb-coach-long' }, h('p', {}, richText(t.tip.long_explanation)))))) : null);
-  return section(index, 'Personalised coaching', 'Strategy Comparison & Personalised Coaching', detail,
+          h('details', { class: 'fb-evidence fb-coach-long' }, h('summary', {}, 'Why and how'), h('p', {}, richText(t.tip.long_explanation)))))) : null);
+  return section(index, 'Personalised coaching', 'Personalised Coaching', detail,
     demoTag(demo, 'Simulated coaching example'),
     strategies,
+    practice,
     // MIRROR contextual coaching only when it was generated (adds observations, examples and sources)
     !demo && contextual?.status === 'generated' && contextual.observations.length ? contextualBlock(contextual) : null);
 }
 
-// ---- Your next practice steps ------------------------------------------------------------------------
-function practiceSection(index, steps, nextSteps, demo) {
+// ---- Practise next (inside Personalised Coaching) ---------------------------------------------------------
+function practiceBlock(steps, nextSteps) {
   const body = steps?.length
     ? h('div', { class: 'fb-grid' }, steps.map((s) => h('article', { class: 'fb-card', 'data-practice': s.skill },
       h('h3', {}, s.skill),
       s.phrase ? h('blockquote', {}, s.phrase) : null,
       labelled('When to use it', s.when), labelled('Why it works', s.why), labelled('Practice objective', s.objective))))
-    : list(nextSteps, 'No next steps were included in this assessment.');
-  return section(index, 'Practice steps', 'Your Next Practice Steps', demo ? 'Illustrative practice priorities for the simulated consultation with Daniel.' : 'What to practise in your next consultation, from this assessment.',
-    demoTag(demo), body);
+    : nextSteps?.length ? list(nextSteps, '') : null;
+  return body ? h('div', { class: 'fb-practice', 'data-block': 'practice' }, h('h3', { class: 'fb-subhead' }, 'Practise next'), body) : null;
 }
 
-// ---- Progress across attempts (comparison data only) ----------------------------------------------------
-function progressSection(index, p, demo) {
-  return section(index, 'Progress', 'Progress Across Attempts', p.note ?? null,
-    demoTag(demo, 'Two fictional attempts · simulated, not saved results'),
+// ---- Progress across attempts (genuine saved attempts only) ----------------------------------------------
+function progressBlock(p) {
+  return h('div', { class: 'fb-progress-block', 'data-block': 'progress' }, h('h3', { class: 'fb-subhead' }, 'Progress across attempts'),
+    p.note ? h('p', { class: 'fb-detail' }, p.note) : null,
     h('table', { class: 'fb-progress' },
       h('thead', {}, h('tr', {}, h('th', {}, 'Skill'), ...p.attempts.map((a) => h('th', {}, a)), h('th', {}, 'Change'))),
       h('tbody', {}, p.rows.map((r) => h('tr', { 'data-skill': r.skill },
         h('th', {}, r.skill), ...r.scores.map((s) => h('td', {}, s.toFixed(2))),
         h('td', { class: r.scores.at(-1) > r.scores[0] ? 'fb-up' : '' }, `${r.scores.at(-1) > r.scores[0] ? '+' : ''}${(r.scores.at(-1) - r.scores[0]).toFixed(2)}`))))));
 }
-
 // ---- Try Again (the only action at the bottom; Back to patient stays in the top bar) -----------------------
 function nextStepsSection({ onTryAgain }) {
   const b = h('button', { type: 'button', class: 'mirror-btn mirror-btn-primary fb-next-primary', 'data-action': 'try-again' }, 'Try Again');
