@@ -30,6 +30,17 @@ function evidenceIndex(a) {
   };
 }
 
+/**
+ * Too little conversation to support a detailed assessment (scores and achievements are then withheld):
+ * fewer than 2 student turns, fewer than 4 turns, or rubric criteria without any evidenced score.
+ * Shared by the feedback report and My Progress, so both apply the same rule.
+ */
+export function isLimitedAssessment(m) {
+  const doctorTurns = m.transcriptTurns.filter((t) => t.speaker === 'doctor').length;
+  const evidenced = m.criteria.filter((c) => c.score != null && c.evidence.length);
+  return doctorTurns < 2 || m.transcriptTurns.length < 4 || (m.criteria.length > 0 && evidenced.length === 0);
+}
+
 export function buildFeedbackModel(a) {
   if (!a || typeof a !== 'object' || !a.session_id || !a.overall_feedback) throw new Error('Not a MIRROR assessment.');
   const resolve = evidenceIndex(a);

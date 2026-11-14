@@ -17,8 +17,9 @@
  *   practiceSteps    [{ skill, phrase, when, why, objective }]           progress     { note, attempts, rows }
  *   demo             { label, transcriptLabel, note }  -> marks every part as simulated
  *   onTryAgain       () => void
+ *   onMyProgress     () => void  -> adds a "My Progress" action next to Try again (summary and end of the report)
  */
-import { buildFeedbackModel } from './feedbackModel.js';
+import { buildFeedbackModel, isLimitedAssessment } from './feedbackModel.js';
 import { COACH_WHY } from './issues.js';
 
 function h(tag, attrs = {}, ...children) {
@@ -106,6 +107,8 @@ function summaryView(m, options, demo, onDetails, limited = false) {
   details.addEventListener('click', onDetails);
   const again = options.onTryAgain ? h('button', { type: 'button', class: 'mirror-btn', 'data-action': 'try-again' }, 'Try again') : null;
   again?.addEventListener('click', options.onTryAgain);
+  const progress = options.onMyProgress ? h('button', { type: 'button', class: 'mirror-btn', 'data-action': 'my-progress' }, 'My Progress') : null;
+  progress?.addEventListener('click', options.onMyProgress);
 
   return h('div', { class: 'fb-overview', 'data-view': 'summary' },
     demo ? h('div', { class: 'fb-demo-banner fb-demo-banner-small', role: 'note' }, demo.label) : null,
@@ -132,7 +135,7 @@ function summaryView(m, options, demo, onDetails, limited = false) {
       h('span', { class: 'fb-kicker' }, 'For your next consultation'),
       nextText ? h('p', { class: 'fb-clamp-2' }, nextText) : null,
       step?.phrase ? h('blockquote', { class: 'fb-clamp-2' }, step.phrase) : null) : null,
-    h('div', { class: 'fb-overview-actions' }, details, again));
+    h('div', { class: 'fb-overview-actions' }, details, again, progress));
 }
 
 export function renderFeedback(container, assessment, options = {}) {
@@ -147,9 +150,7 @@ export function renderFeedback(container, assessment, options = {}) {
     container.closest('.mirror-feedback')?.scrollIntoView({ behavior: 'auto', block: 'start' });
   };
   // Too little conversation to support a detailed assessment: no scores and no achievements are presented.
-  const doctorTurns = m.transcriptTurns.filter((t) => t.speaker === 'doctor').length;
-  const evidenced = m.criteria.filter((c) => c.score != null && c.evidence.length);
-  const limited = !demo && (doctorTurns < 2 || m.transcriptTurns.length < 4 || (m.criteria.length > 0 && evidenced.length === 0));
+  const limited = !demo && isLimitedAssessment(m);
 
   const overview = summaryView(m, options, demo, () => showView(true), limited);
   const back = h('button', { type: 'button', class: 'mirror-btn', 'data-action': 'show-summary' }, '← Back to summary');
@@ -457,13 +458,17 @@ function progressBlock(p) {
         h('td', { class: r.scores.at(-1) > r.scores[0] ? 'fb-up' : '' }, `${r.scores.at(-1) > r.scores[0] ? '+' : ''}${(r.scores.at(-1) - r.scores[0]).toFixed(2)}`))))));
 }
 // ---- Try Again (the only action at the bottom; Back to patient stays in the top bar) -----------------------
-function nextStepsSection({ onTryAgain }) {
+function nextStepsSection({ onTryAgain, onMyProgress }) {
   const b = h('button', { type: 'button', class: 'mirror-btn mirror-btn-primary fb-next-primary', 'data-action': 'try-again' }, 'Try Again');
   b.addEventListener('click', onTryAgain);
+  const p = onMyProgress ? h('button', { type: 'button', class: 'mirror-btn fb-next-secondary', 'data-action': 'my-progress' }, 'My Progress') : null;
+  p?.addEventListener('click', onMyProgress);
   return h('section', { class: 'fb-section fb-next', 'data-section': 'next-steps' },
     h('h2', {}, 'Would you like to try again?'),
-    h('p', { class: 'fb-detail' }, 'Ready to practise again? Return to patient selection and start a new consultation.'),
-    h('div', { class: 'fb-next-actions' }, b));
+    h('p', { class: 'fb-detail' }, onMyProgress
+      ? 'Ready to practise again? Return to patient selection, or see how your skills have developed across your saved consultations.'
+      : 'Ready to practise again? Return to patient selection and start a new consultation.'),
+    h('div', { class: 'fb-next-actions' }, b, p));
 }
 
 function metric(label, value, note) {
