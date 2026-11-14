@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PsyTrain · pitch · Design B: Paper Cut-outs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!--
+  Design B · "Paper Cut-outs"
+  Inspired by Matisse's late cut-outs: organic blobs and leaf shapes on grainy paper,
+  warm terracotta, sage, lilac, butter and plum. Serif italic headlines, no straight corners.
+  Keys: → / Space next (starts the timer) · ← back · F fullscreen · N notes · K or click pause video · T reset timer
+-->
+<style>
+  :root {
+    --paper: #fbf3e8; --plum: #3b2340; --soft: #7a6670;
+    --terra: #d9653b; --sage: #8daa91; --lilac: #b8a1d9; --butter: #f6d68b; --sky: #7fb2d8; --rose: #f2b5a7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #efe4d4; overflow: hidden; }
+  body { font-family: "Avenir Next", Avenir, "Helvetica Neue", system-ui, sans-serif; color: var(--plum); }
+  #stage { position: absolute; width: 1920px; height: 1080px; left: 50%; top: 50%; transform-origin: 0 0; }
+  .slide { position: absolute; inset: 0; background: var(--paper); display: none; overflow: hidden; }
+  .slide.on { display: block; }
+  /* paper grain */
+  .slide::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .32; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .3  0 0 0 .28 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+  .serif { font-family: "Iowan Old Style", "Hoefler Text", Palatino, Georgia, serif; }
+  h1, h2 { font-family: "Iowan Old Style", "Hoefler Text", Palatino, Georgia, serif; font-weight: 400; margin: 0; letter-spacing: -1px; }
+  h1 { font-size: 104px; line-height: 1.04; }
+  h2 { font-size: 80px; line-height: 1.06; }
+  em { font-style: italic; color: var(--terra); }
+  .sub { font-size: 36px; color: var(--soft); margin: 30px 0 0; }
+  .kicker { font-size: 24px; letter-spacing: 6px; text-transform: uppercase; font-weight: 600; color: var(--sage); }
+
+  .cut { position: absolute; overflow: visible; }
+  .pill { display: inline-flex; align-items: center; gap: 14px; padding: 14px 30px; border-radius: 999px; font-size: 28px; font-weight: 600; }
+
+  .rise { opacity: 0; transform: translateY(24px) rotate(-1deg); }
+  .on .rise { animation: rise .8s cubic-bezier(.2,.8,.2,1) forwards; }
+  .on .rise.d1 { animation-delay: .1s } .on .rise.d2 { animation-delay: .22s } .on .rise.d3 { animation-delay: .34s } .on .rise.d4 { animation-delay: .46s }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  .on .sway { animation: sway 7s ease-in-out infinite; transform-origin: 50% 100%; }
+  @keyframes sway { 50% { transform: rotate(4deg); } }
+
+  /* 1 · title */
+  .s1 .copy { position: absolute; left: 150px; top: 190px; width: 920px; }
+  .s1 .chips { display: flex; gap: 14px; margin-top: 50px; }
+  .s1 .chips .pill { white-space: nowrap; font-size: 24px; padding: 13px 22px; }
+  .s1 .team { position: absolute; left: 150px; bottom: 80px; font-size: 24px; color: var(--soft); }
+  .s1 .portrait { position: absolute; right: 90px; top: 110px; width: 860px; height: 860px; }
+
+  .s1 .built { position: absolute; left: 150px; bottom: 150px; display: flex; align-items: center; gap: 22px; font-size: 22px; color: var(--soft); }
+  .s1 .logo { display: inline-flex; align-items: center; gap: 12px; height: 72px; padding: 0 28px; border-radius: 999px; background: #fff;
+              box-shadow: 0 6px 0 rgba(59,35,64,.06); font-size: 26px; font-weight: 700; color: var(--plum); }
+  .s1 .logo svg { fill: currentColor; display: block; }
+  .s4 .lead { position: absolute; left: 150px; top: 200px; font-size: 32px; color: var(--soft); }
+  .s4 .lead b { color: var(--plum); font-weight: 600; }
+  .s5 .kick { position: absolute; left: 0; right: 0; top: 330px; text-align: center; }
+  .s5 .step span { max-width: 210px; line-height: 1.3; font-size: 21px; }
+
+  /* 2, 3 · video */
+  .vid .head { position: absolute; left: 230px; right: 230px; top: 50px; display: flex; align-items: center; justify-content: space-between; }
+  .vid .line { font-family: "Iowan Old Style", "Hoefler Text", Georgia, serif; font-size: 52px; }
+  .vid .frame { position: absolute; left: 230px; top: 150px; width: 1460px; height: 821px; border-radius: 90px 60px 90px 60px; overflow: hidden; background: #000;
+                box-shadow: 0 24px 50px rgba(59,35,64,.22); }
+  .vid video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .duo .head { left: 70px; right: 70px; }
+  .duo .frame { top: 220px; width: 870px; height: 489px; border-radius: 60px 44px 60px 44px; }
+  .duo .f1 { left: 70px; transform: rotate(-1deg); }
+  .duo .f2 { left: 980px; transform: rotate(1deg); }
+  .duo .tag { position: absolute; top: 742px; font-family: "Iowan Old Style", Georgia, serif; font-style: italic; font-size: 38px; }
+  .duo .t1 { left: 110px; } .duo .t2 { left: 1020px; }
+
+  /* 4 · feedback */
+  .s4 .title { position: absolute; left: 150px; top: 90px; }
+  .s4 .card { position: absolute; padding: 26px 26px 20px; border-radius: 70px; }
+  .s4 .card img { display: block; width: 100%; border-radius: 44px; }
+  .s4 .card .cap { font-family: "Iowan Old Style", Georgia, serif; font-style: italic; font-size: 34px; margin: 18px 14px 4px; }
+  .s4 .c1 { left: 150px; top: 320px; width: 800px; background: var(--butter); transform: rotate(-2.5deg); }
+  .s4 .c2 { left: 1000px; top: 370px; width: 760px; background: var(--lilac); transform: rotate(2deg); }
+
+  /* 5 · close */
+  .s5 .title { position: absolute; left: 0; right: 0; top: 110px; text-align: center; }
+  .s5 .loop { position: absolute; left: 0; right: 0; top: 430px; display: flex; justify-content: center; gap: 10px; }
+  .s5 .step { position: relative; width: 340px; height: 340px; }
+  .s5 .step svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .s5 .step .word { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .s5 .step b { font-family: "Iowan Old Style", Georgia, serif; font-style: italic; font-weight: 400; font-size: 40px; }
+  .s5 .step span { font-size: 22px; margin-top: 8px; opacity: .8; }
+  .s5 .next { position: absolute; left: 0; right: 0; bottom: 96px; text-align: center; font-size: 30px; color: var(--soft); }
+  .s5 .next b { color: var(--plum); }
+
+  #progress { position: fixed; left: 50%; bottom: 18px; margin-left: -60px; display: flex; gap: 12px; z-index: 6; }
+  #progress i { width: 14px; height: 14px; border-radius: 50%; background: rgba(59,35,64,.18); transition: background .4s, transform .4s; }
+  #progress i.on { background: var(--terra); transform: scale(1.3); }
+  #hud { position: fixed; right: 16px; bottom: 10px; font: 13px ui-monospace, monospace; color: rgba(59,35,64,.35); z-index: 5; }
+  #notes { position: fixed; left: 24px; right: 24px; bottom: 44px; background: rgba(59,35,64,.95); color: var(--paper); font: 20px/1.45 "Avenir Next", system-ui;
+           padding: 18px 28px; border-radius: 30px; display: none; z-index: 7; max-height: 40vh; overflow: auto; }
+  #notes b { color: var(--butter); }
+</style>
+</head>
+<body>
+<!-- shared cut-out shapes -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <path id="blobA" d="M43.1,-58.6C55.4,-49.5,64.4,-36.1,69.4,-21.1C74.4,-6.1,75.4,10.6,69.5,24.3C63.6,38.1,50.8,48.9,36.6,57.3C22.4,65.7,6.8,71.7,-9.3,71.9C-25.4,72.1,-42,66.5,-53.4,55.4C-64.8,44.3,-71,27.7,-72.6,10.9C-74.2,-5.9,-71.2,-22.9,-62.1,-35.6C-53,-48.3,-37.8,-56.7,-23,-64.6C-8.2,-72.5,6.2,-79.9,19.7,-77.3C33.2,-74.7,30.8,-67.7,43.1,-58.6Z" />
+    <path id="blobB" d="M38.5,-63.3C50.8,-58.4,62.4,-50.2,70.6,-38.9C78.8,-27.6,83.6,-13.8,82.4,-0.7C81.2,12.4,74,24.8,65.7,35.9C57.4,47,48,56.8,36.7,64.7C25.4,72.6,12.7,78.6,-0.9,80.1C-14.5,81.6,-29,78.6,-41.6,71.6C-54.2,64.6,-64.9,53.6,-71.9,40.6C-78.9,27.6,-82.2,13.8,-80.6,0.9C-79,-12,-72.5,-24,-64.4,-34.3C-56.3,-44.6,-46.6,-53.2,-35.6,-58.8C-24.6,-64.4,-12.3,-67,0.6,-68C13.5,-69,26.2,-68.2,38.5,-63.3Z" />
+    <path id="leaf" d="M50 0 C62 30 92 38 80 70 C70 94 96 106 88 132 C80 156 62 162 56 200 L44 200 C38 162 20 156 12 132 C4 106 30 94 20 70 C8 38 38 30 50 0Z" />
+    <path id="frond" d="M50 0 C66 22 96 34 92 62 C89 82 70 86 72 104 C74 124 96 134 90 160 C85 182 64 190 54 200 L46 200 C36 190 15 182 10 160 C4 134 26 124 28 104 C30 86 11 82 8 62 C4 34 34 22 50 0Z" />
+    <clipPath id="clipPortrait"><use href="#blobB" /></clipPath>
+  </defs>
+</svg>
+
+<div id="stage">
+
+  <!-- 1 · Hook -->
+  <section class="slide s1" data-time="0:00 – 0:20"
+    data-notes="Hi, we're the PsyTrain team. Every psychotherapy student has to learn the SKID, the structured clinical interview, and the hardest part is the patient who doesn't cooperate: one who keeps drifting off, one who gets hostile. Today they learn that on real patients. We built a patient you can practise on as often as you like, with ElevenLabs for the voice and Claude on AWS Bedrock for the mind.">
+    <svg class="cut sway" style="left:-40px;bottom:-60px;width:150px;height:300px" viewBox="0 0 100 200"><use href="#leaf" fill="var(--sage)" /></svg>
+    <svg class="cut" style="left:960px;top:40px;width:120px;height:120px" viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--butter)" /></svg>
+    <svg class="portrait rise d2" viewBox="-100 -100 200 200">
+      <use href="#blobA" fill="var(--terra)" transform="translate(12 10) scale(1.04) rotate(18)" />
+      <g clip-path="url(#clipPortrait)">
+        <rect x="-100" y="-100" width="200" height="200" fill="var(--rose)" />
+        <image href="media/poster-distracted.jpg" x="-266" y="-140" width="533" height="300" preserveAspectRatio="none" />
+      </g>
+    </svg>
+    <svg class="cut sway" style="right:40px;bottom:-40px;width:130px;height:260px;animation-delay:-2s" viewBox="0 0 100 200"><use href="#frond" fill="var(--plum)" /></svg>
+    <svg class="cut" style="right:900px;bottom:120px;width:90px;height:90px" viewBox="-100 -100 200 200"><use href="#blobB" fill="var(--lilac)" /></svg>
+    <div class="copy">
+      <div class="kicker rise">Meet your AI patient</div>
+      <h1 class="rise d1" style="margin-top:26px">Practise the <em>hard</em> conversations before they're real.</h1>
+      <p class="sub rise d2">A life-size AI patient for practising the SKID interview.</p>
+      <div class="chips rise d3">
+        <span class="pill" style="background:var(--butter)">Many personalities</span>
+        <span class="pill" style="background:var(--rose)">Difficult behaviours</span>
+        <span class="pill" style="background:var(--sage);color:#fff">Clinically grounded feedback</span>
+      </div>
+    </div>
+    <div class="built rise d4">Built with
+      <span class="logo"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4.6035 0v24h4.9317V0zm9.8613 0v24h4.9317V0z"/></svg>ElevenLabs</span>
+      <span class="logo" aria-label="AWS"><svg viewBox="0 0 24 24" width="50" height="50" aria-hidden="true"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.777.777 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.247-.223-.024-.527.272-.351 3.384 1.963 7.559 3.153 11.877 3.153 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.383.607zM22.792 14.961c-.336-.43-2.22-.207-3.074-.103-.255.032-.295-.192-.063-.36 1.5-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.215.184-.423.088-.327-.151.32-.79 1.03-2.57.695-2.994z"/></svg>Bedrock</span>
+    </div>
+    <div class="team rise d4">Harsh Khandelwal · Debanjana Bhattacharjya · Dr. Andreas Weigert · Parisa Bastani</div>
+  </section>
+
+  <!-- 2 · Mary video: browser + Apple Vision Pro, playing together -->
+  <section class="slide vid duo" data-time="0:20 – 1:15"
+    data-notes="(Let the clips play; stay quiet for her first answer.) Mary is easily distracted. Left is the web app in the browser, right is the same session in 3D on Apple Vision Pro, with the SKID notes floating next to her. Before every answer our orchestrator decides her mode. An open question makes her drift, and the light bulb shows three strategies. The student names the drift and repeats the question, and Mary comes back. Every word she says is generated live.">
+    <svg class="cut" style="left:-180px;bottom:-300px;width:700px;height:700px" viewBox="-100 -100 200 200"><use href="#blobB" fill="var(--butter)" /></svg>
+    <svg class="cut" style="right:-240px;bottom:-300px;width:620px;height:620px" viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--sky)" /></svg>
+    <svg class="cut sway" style="right:560px;bottom:-90px;width:110px;height:220px" viewBox="0 0 100 200"><use href="#leaf" fill="var(--sage)" /></svg>
+    <div class="head rise">
+      <span class="pill" style="background:var(--butter)">Mary · easily distracted</span>
+      <span class="line">She drifts. <em>You steer.</em></span>
+    </div>
+    <div class="frame f1"><video src="media/demo-distracted.mp4" poster="media/poster-distracted.jpg" preload="auto" playsinline></video></div>
+    <div class="frame f2"><video src="media/demo-visionpro.mp4" poster="media/poster-visionpro.jpg" preload="auto" playsinline></video></div>
+    <div class="tag t1 rise d2">In the browser</div>
+    <div class="tag t2 rise d2">In 3D on Apple Vision Pro</div>
+  </section>
+
+  <!-- 3 · Ryan video -->
+  <section class="slide vid" data-time="1:15 – 1:45" data-video="1" data-start="13.5"
+    data-notes="Same system, different patient. Ryan was sent by HR. 'Calm down, you have anger issues' is a classic mistake: he switches to aggressive and crosses his arms. The student names the feeling and gives him control, and he de-escalates.">
+    <svg class="cut" style="right:-200px;top:300px;width:760px;height:760px" viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--rose)" /></svg>
+    <svg class="cut" style="left:-260px;bottom:-280px;width:620px;height:620px" viewBox="-100 -100 200 200"><use href="#blobB" fill="var(--lilac)" /></svg>
+    <svg class="cut sway" style="left:60px;top:-70px;width:110px;height:220px;transform:rotate(180deg)" viewBox="0 0 100 200"><use href="#frond" fill="var(--terra)" /></svg>
+    <div class="head rise">
+      <span class="pill" style="background:var(--rose)">Ryan · aggressive</span>
+      <span class="line">He pushes. <em>You de-escalate.</em></span>
+    </div>
+    <div class="frame"><video src="media/demo-aggressive.mp4" poster="media/poster-aggressive.jpg" preload="auto" playsinline></video></div>
+  </section>
+
+  <!-- 4 · Feedback -->
+  <section class="slide s4" data-time="1:45 – 2:25"
+    data-notes="Click End session and our feedback module MIRROR reviews the transcript. It shows what the patient revealed and what you missed, and points at the exact turn where it went wrong, with a better sentence to try. The live hints and this feedback are retrieved from published clinical books with RAG, so every suggestion is grounded in the literature. Then you press Try again. (These screenshots are the built-in sample report.)">
+    <svg class="cut" style="right:-140px;top:-160px;width:520px;height:520px" viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--sage)" /></svg>
+    <svg class="cut sway" style="left:60px;bottom:-50px;width:130px;height:260px" viewBox="0 0 100 200"><use href="#leaf" fill="var(--terra)" /></svg>
+    <h2 class="title rise">Feedback on the <em>exact turn.</em></h2>
+    <div class="lead rise d1">Hints and feedback grounded in <b>published clinical books</b>, retrieved with RAG.</div>
+    <div class="card c1 rise d1"><img src="media/feedback-summary.png" alt="MIRROR summary" /><div class="cap">At a glance</div></div>
+    <div class="card c2 rise d2"><img src="media/feedback-evidence.png" alt="MIRROR transcript evidence" /><div class="cap">What to say instead</div></div>
+  </section>
+
+  <!-- 5 · How it works + close -->
+  <section class="slide s5" data-time="2:25 – 3:00"
+    data-notes="What makes it new. One: an orchestrator that controls her body, voice and words together, so no two sessions are the same. Two: you build the patient from Big Five personality traits. Three: hints and feedback come from a RAG over published clinical books. Four: it is built for SKID interview training. Five: you don't need an expensive Apple Vision Pro. It runs as a web app in the browser, or in 3D on a cheaper WebXR headset. Practise, get feedback, try again. Thank you.">
+    <svg class="cut sway" style="left:70px;bottom:-40px;width:150px;height:300px" viewBox="0 0 100 200"><use href="#frond" fill="var(--sage)" /></svg>
+    <svg class="cut sway" style="right:70px;bottom:-40px;width:150px;height:300px;animation-delay:-3s" viewBox="0 0 100 200"><use href="#leaf" fill="var(--lilac)" /></svg>
+    <h2 class="title rise" style="font-size:96px">Practise. Get feedback. <em>Try again.</em></h2>
+    <div class="kicker kick rise d1">What's new</div>
+    <div class="loop">
+      <div class="step rise d1"><svg viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--terra)" /></svg><div class="word" style="color:#fff"><b>Orchestrator</b><span>Body, voice and words. Never the same session twice.</span></div></div>
+      <div class="step rise d2"><svg viewBox="-100 -100 200 200"><use href="#blobB" fill="var(--butter)" transform="rotate(40)" /></svg><div class="word"><b>Big Five</b><span>Build any personality in a click.</span></div></div>
+      <div class="step rise d3"><svg viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--sage)" transform="rotate(-70)" /></svg><div class="word" style="color:#fff"><b>Clinical RAG</b><span>Hints and feedback from published books.</span></div></div>
+      <div class="step rise d4"><svg viewBox="-100 -100 200 200"><use href="#blobB" fill="var(--lilac)" transform="rotate(120)" /></svg><div class="word"><b>SKID</b><span>Built for structured interview training.</span></div></div>
+      <div class="step rise d4"><svg viewBox="-100 -100 200 200"><use href="#blobA" fill="var(--sky)" transform="rotate(150)" /></svg><div class="word"><b>Any device</b><span>Browser, budget headset or Vision Pro.</span></div></div>
+    </div>
+  </section>
+
+</div>
+<div id="progress"></div>
+<div id="notes"></div>
+<div id="hud"></div>
+<script>
+  const stage = document.getElementById('stage');
+  const slides = [...document.querySelectorAll('.slide')];
+  const notes = document.getElementById('notes'), hud = document.getElementById('hud'), prog = document.getElementById('progress');
+  prog.innerHTML = slides.map(() => '<i></i>').join('');
+  let i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1)) || 1) - 1));
+  let t0 = null;
+  function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `scale(${s}) translate(-50%, -50%)`; }
+  function show(n) {
+    slides.forEach((el, k) => { el.classList.toggle('on', k === n); if (k !== n) el.querySelectorAll('video').forEach(v => v.pause()); });
+    i = n; history.replaceState(null, '', '#' + (n + 1));
+    const el = slides[n], vids = [...el.querySelectorAll('video')];
+    vids.forEach(v => { v.muted = false; v.currentTime = parseFloat(el.dataset.start || 0); });
+    vids.forEach(v => v.play().catch(() => {}));  // start together
+    notes.innerHTML = `<b>Slide ${n + 1}/${slides.length} · ${el.dataset.time}</b><br>${el.dataset.notes}`;
+    [...prog.children].forEach((d, k) => d.classList.toggle('on', k === n));
+    tick();
+  }
+  function tick() {
+    const s = t0 ? Math.floor((Date.now() - t0) / 1000) : 0;
+    hud.textContent = `${i + 1}/${slides.length}  ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} / 3:00`;
+  }
+  setInterval(tick, 500);
+  addEventListener('resize', fit);
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); if (!t0) t0 = Date.now(); show(Math.min(slides.length - 1, i + 1)); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) show(Math.max(0, i - 1));
+    else if (e.key === 'n' || e.key === 'N') notes.style.display = notes.style.display === 'block' ? 'none' : 'block';
+    else if (e.key === 't' || e.key === 'T') t0 = Date.now();
+    else if (e.key === 'f' || e.key === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    else if (e.key === 'k' || e.key === 'K') toggleVideos();
+  });
+  function toggleVideos() { const vs = [...slides[i].querySelectorAll('video')]; const play = vs.some(v => v.paused); vs.forEach(v => play ? v.play() : v.pause()); }
+  stage.addEventListener('click', toggleVideos);
+  fit(); show(i);
+</script>
+</body>
+</html>

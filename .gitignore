@@ -6,3 +6,8 @@ assets-src/
 
 .env
 .env.local
+
+# macOS / Office temp files and pitch build artefacts
+.DS_Store
+~$*
+pitch/.pptx-build/

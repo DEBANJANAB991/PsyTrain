@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PsyTrain · pitch · Design C: Aurora Glass</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!--
+  Design C · "Aurora Glass"
+  A calm night sky of slowly drifting colour orbs (violet, pink, aqua, peach) behind frosted-glass cards.
+  Soft glow, gradient type, everything rounded. Feels like a modern product launch.
+  Keys: → / Space next (starts the timer) · ← back · F fullscreen · N notes · K or click pause video · T reset timer
+-->
+<style>
+  :root {
+    --night: #0b0d1e; --fg: #f4f2ff; --soft: rgba(244,242,255,.62);
+    --violet: #7c5cff; --pink: #ff6fb5; --aqua: #36d1c4; --peach: #ffb86b;
+    --glass: rgba(255,255,255,.08); --edge: rgba(255,255,255,.18);
+    --grad: linear-gradient(100deg, var(--aqua), var(--violet) 45%, var(--pink) 75%, var(--peach));
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #05060f; overflow: hidden; }
+  body { font-family: "Avenir Next", Avenir, "SF Pro Display", system-ui, sans-serif; color: var(--fg); }
+  #stage { position: absolute; width: 1920px; height: 1080px; left: 50%; top: 50%; transform-origin: 0 0; overflow: hidden; background: var(--night); }
+
+  /* aurora: shared across slides, keeps moving between them */
+  .orb { position: absolute; border-radius: 50%; filter: blur(110px); opacity: .55; animation: drift 22s ease-in-out infinite alternate; }
+  .o1 { width: 760px; height: 760px; background: var(--violet); left: -160px; top: -220px; }
+  .o2 { width: 640px; height: 640px; background: var(--pink); right: -140px; top: 120px; animation-duration: 26s; animation-delay: -6s; }
+  .o3 { width: 600px; height: 600px; background: var(--aqua); left: 520px; bottom: -340px; animation-duration: 30s; animation-delay: -12s; opacity: .4; }
+  .o4 { width: 420px; height: 420px; background: var(--peach); right: 520px; top: -260px; animation-duration: 24s; animation-delay: -3s; opacity: .35; }
+  @keyframes drift { 33% { transform: translate(120px, 60px) scale(1.08); } 66% { transform: translate(-80px, 120px) scale(.94); } 100% { transform: translate(60px, -40px) scale(1.05); } }
+  #aurora { position: absolute; inset: 0; transition: filter 1s; }
+  #stage[data-mood="calm"] #aurora { filter: hue-rotate(-25deg); }
+  #stage[data-mood="hot"] #aurora { filter: hue-rotate(35deg) saturate(1.2); }
+
+  .slide { position: absolute; inset: 0; display: none; }
+  .slide.on { display: block; }
+
+  h1, h2 { margin: 0; font-weight: 700; letter-spacing: -2px; }
+  h1 { font-size: 100px; line-height: 1.04; }
+  h2 { font-size: 76px; line-height: 1.06; }
+  .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { font-size: 36px; color: var(--soft); margin: 30px 0 0; font-weight: 400; }
+  .kicker { font-size: 22px; letter-spacing: 6px; text-transform: uppercase; font-weight: 600; color: var(--soft); }
+
+  .glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 44px;
+           backdrop-filter: blur(24px) saturate(1.3); -webkit-backdrop-filter: blur(24px) saturate(1.3);
+           box-shadow: 0 30px 80px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18); }
+  .chip { display: inline-flex; align-items: center; gap: 12px; padding: 14px 28px; border-radius: 999px; font-size: 26px; font-weight: 600; }
+  .chip .dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 16px currentColor; }
+
+  .rise { opacity: 0; transform: translateY(28px); filter: blur(6px); }
+  .on .rise { animation: rise .9s cubic-bezier(.2,.8,.2,1) forwards; }
+  .on .rise.d1 { animation-delay: .1s } .on .rise.d2 { animation-delay: .22s } .on .rise.d3 { animation-delay: .34s } .on .rise.d4 { animation-delay: .46s }
+  @keyframes rise { to { opacity: 1; transform: none; filter: none; } }
+  .on .hover { animation: hover 8s ease-in-out infinite; }
+  @keyframes hover { 50% { transform: translateY(-14px); } }
+
+  /* 1 · title */
+  .s1 .copy { position: absolute; left: 140px; top: 200px; width: 900px; }
+  .s1 .chips { display: flex; gap: 16px; margin-top: 50px; }
+  .s1 .team { position: absolute; left: 140px; bottom: 76px; font-size: 22px; color: var(--soft); }
+  .s1 .card { position: absolute; padding: 16px; }
+  .s1 .card .pic { width: 100%; height: 100%; border-radius: 30px; }
+  .s1 .card .chip { position: absolute; left: 34px; bottom: 34px; font-size: 22px; padding: 10px 22px; background: rgba(11,13,30,.6); }
+  .s1 .mary { right: 330px; top: 170px; width: 520px; height: 640px; transform: rotate(-4deg); }
+  .s1 .mary .pic { background: url(media/poster-distracted.jpg) 50% 66% / auto 160% no-repeat; }
+  .s1 .ryan { right: 110px; top: 330px; width: 460px; height: 580px; transform: rotate(5deg); }
+  .s1 .ryan .pic { background: url(media/poster-aggressive.jpg) 50% 30% / auto 150% no-repeat; }
+
+  /* 2, 3 · video */
+  .vid .head { position: absolute; left: 230px; right: 230px; top: 52px; display: flex; align-items: center; justify-content: space-between; }
+  .vid .line { font-size: 46px; font-weight: 700; letter-spacing: -1px; }
+  .vid .frame { position: absolute; left: 214px; top: 140px; width: 1492px; height: 860px; padding: 16px; }
+  .vid .frame video { width: 100%; height: 100%; object-fit: cover; border-radius: 30px; display: block; background: #000; }
+
+  /* 4 · feedback */
+  .s4 .title { position: absolute; left: 140px; top: 92px; }
+  .s4 .card { position: absolute; padding: 18px 18px 14px; }
+  .s4 .card img { display: block; width: 100%; border-radius: 28px; }
+  .s4 .card .cap { font-size: 28px; font-weight: 600; margin: 16px 12px 4px; }
+  .s4 .c1 { left: 140px; top: 290px; width: 820px; transform: rotate(-1.5deg); }
+  .s4 .c2 { left: 1000px; top: 350px; width: 780px; transform: rotate(1.5deg); }
+
+  /* 5 · close */
+  .s5 .title { position: absolute; left: 0; right: 0; top: 120px; text-align: center; }
+  .s5 .loop { position: absolute; left: 230px; right: 230px; top: 420px; height: 300px; display: flex; justify-content: space-between; align-items: center; }
+  .s5 .rail { position: absolute; left: 140px; right: 140px; top: 50%; height: 6px; margin-top: -3px; border-radius: 99px; background: var(--grad); opacity: .7; box-shadow: 0 0 30px rgba(124,92,255,.7); }
+  .s5 .node { position: relative; width: 280px; height: 280px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .s5 .node b { font-size: 46px; letter-spacing: -1px; }
+  .s5 .node span { font-size: 21px; color: var(--soft); margin-top: 10px; }
+  .s5 .node i { position: absolute; top: 34px; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 22px currentColor; }
+  .s5 .next { position: absolute; left: 0; right: 0; bottom: 100px; text-align: center; font-size: 30px; color: var(--soft); }
+  .s5 .next b { color: var(--fg); }
+
+  #progress { position: fixed; left: 50%; bottom: 18px; width: 220px; height: 8px; margin-left: -110px; border-radius: 99px; background: rgba(255,255,255,.12); z-index: 6; }
+  #progress i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--grad); transition: width .5s; }
+  #hud { position: fixed; right: 16px; bottom: 10px; font: 13px ui-monospace, monospace; color: rgba(255,255,255,.3); z-index: 5; }
+  #notes { position: fixed; left: 24px; right: 24px; bottom: 40px; background: rgba(11,13,30,.92); border: 1px solid rgba(255,255,255,.15); color: #eee; font: 20px/1.45 "Avenir Next", system-ui;
+           padding: 18px 28px; border-radius: 26px; display: none; z-index: 7; max-height: 40vh; overflow: auto; }
+  #notes b { color: var(--aqua); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="aurora"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="orb o4"></div></div>
+
+  <!-- 1 · Hook -->
+  <section class="slide s1" data-time="0:00 – 0:20" data-mood=""
+    data-notes="Hi, we're the PsyTrain team. Every psychotherapy and medical student has to learn to interview patients who don't cooperate: one who keeps drifting off, one who gets hostile. Today they learn that on real patients. We built a patient you can practise on as often as you like.">
+    <div class="copy">
+      <div class="kicker rise">Meet your AI patient</div>
+      <h1 class="rise d1" style="margin-top:26px">Practise the <span class="grad">hard</span> conversations before they're real.</h1>
+      <p class="sub rise d2">A life-size AI patient for psychotherapy training.</p>
+      <div class="chips rise d3">
+        <span class="chip glass" style="color:var(--aqua)"><span class="dot" style="background:var(--aqua)"></span><span style="color:var(--fg)">Live voice</span></span>
+        <span class="chip glass" style="color:var(--pink)"><span class="dot" style="background:var(--pink)"></span><span style="color:var(--fg)">Real moods</span></span>
+        <span class="chip glass" style="color:var(--peach)"><span class="dot" style="background:var(--peach)"></span><span style="color:var(--fg)">Feedback</span></span>
+      </div>
+    </div>
+    <div class="card glass mary rise d2"><div class="pic hover" role="img" aria-label="Mary, the distracted AI patient"></div>
+      <span class="chip" style="color:var(--violet)"><span class="dot" style="background:var(--violet)"></span><span style="color:var(--fg)">Mary · distracted</span></span></div>
+    <div class="card glass ryan rise d3"><div class="pic" role="img" aria-label="Ryan, the aggressive AI patient"></div>
+      <span class="chip" style="color:var(--pink)"><span class="dot" style="background:var(--pink)"></span><span style="color:var(--fg)">Ryan · aggressive</span></span></div>
+    <div class="team rise d4">Harsh Khandelwal · Debanjana Bhattacharjya · Dr. Andreas Weigert · Parisa Bastani</div>
+  </section>
+
+  <!-- 2 · Mary video -->
+  <section class="slide vid" data-time="0:20 – 1:15" data-mood="calm"
+    data-notes="(Let the clip play; stay quiet for her first answer.) Mary is easily distracted. Top left is our orchestrator: before every answer it decides her mode. An open question makes her drift, and the light bulb shows three strategies. The student names the drift and repeats the question, and Mary comes back. Every word she says is generated live.">
+    <div class="head rise">
+      <span class="chip glass" style="color:var(--violet)"><span class="dot" style="background:var(--violet)"></span><span style="color:var(--fg)">Mary · easily distracted</span></span>
+      <span class="line">She drifts. <span class="grad">You steer.</span></span>
+    </div>
+    <div class="frame glass"><video src="media/demo-distracted.mp4" poster="media/poster-distracted.jpg" preload="auto" playsinline></video></div>
+  </section>
+
+  <!-- 3 · Ryan video -->
+  <section class="slide vid" data-time="1:15 – 1:45" data-start="13.5" data-mood="hot"
+    data-notes="Same system, different patient. Ryan was sent by HR. 'Calm down, you have anger issues' is a classic mistake: he switches to aggressive and crosses his arms. The student names the feeling and gives him control, and he de-escalates.">
+    <div class="head rise">
+      <span class="chip glass" style="color:var(--pink)"><span class="dot" style="background:var(--pink)"></span><span style="color:var(--fg)">Ryan · aggressive</span></span>
+      <span class="line">He pushes. <span class="grad">You de-escalate.</span></span>
+    </div>
+    <div class="frame glass"><video src="media/demo-aggressive.mp4" poster="media/poster-aggressive.jpg" preload="auto" playsinline></video></div>
+  </section>
+
+  <!-- 4 · Feedback -->
+  <section class="slide s4" data-time="1:45 – 2:25" data-mood=""
+    data-notes="Click End session and our feedback module MIRROR reviews the transcript. It shows what the patient revealed and what you missed, and points at the exact turn where it went wrong, with a better sentence to try. Then you press Try again. (These screenshots are the built-in sample report.)">
+    <h2 class="title rise">Feedback on the <span class="grad">exact turn.</span></h2>
+    <div class="card glass c1 rise d1"><img src="media/feedback-summary.png" alt="MIRROR summary" /><div class="cap">At a glance</div></div>
+    <div class="card glass c2 rise d2"><img src="media/feedback-evidence.png" alt="MIRROR transcript evidence" /><div class="cap">What to say instead</div></div>
+  </section>
+
+  <!-- 5 · How it works + close -->
+  <section class="slide s5" data-time="2:25 – 3:00" data-mood=""
+    data-notes="One live loop per answer. ElevenLabs listens and speaks. Our orchestrator on Amazon Bedrock uses Claude to pick the patient's mode and write the answer, with a running memory. Each answer carries a body cue, so posture and gaze match the words. And MIRROR gives hints during the talk and feedback after it. Practise, get feedback, try again. Next: more traits, more situations, and a classroom test on Vision Pro. Thank you.">
+    <h2 class="title rise" style="font-size:92px">Practise. Get feedback. <span class="grad">Try again.</span></h2>
+    <div class="loop">
+      <div class="rail rise"></div>
+      <div class="node glass rise d1"><i style="color:var(--aqua);background:var(--aqua)"></i><b>Listen</b><span>ElevenLabs voice</span></div>
+      <div class="node glass rise d2"><i style="color:var(--violet);background:var(--violet)"></i><b>Decide</b><span>Claude on Bedrock</span></div>
+      <div class="node glass rise d3"><i style="color:var(--pink);background:var(--pink)"></i><b>Move</b><span>three.js · WebXR</span></div>
+      <div class="node glass rise d4"><i style="color:var(--peach);background:var(--peach)"></i><b>Reflect</b><span>MIRROR feedback</span></div>
+    </div>
+    <div class="next rise d4"><b>Next:</b> more traits · more situations · Vision Pro classroom test</div>
+  </section>
+
+</div>
+<div id="progress"><i></i></div>
+<div id="notes"></div>
+<div id="hud"></div>
+<script>
+  const stage = document.getElementById('stage');
+  const slides = [...document.querySelectorAll('.slide')];
+  const notes = document.getElementById('notes'), hud = document.getElementById('hud'), bar = document.querySelector('#progress i');
+  let i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1)) || 1) - 1));
+  let t0 = null;
+  function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `scale(${s}) translate(-50%, -50%)`; }
+  function show(n) {
+    slides.forEach((el, k) => { el.classList.toggle('on', k === n); const v = el.querySelector('video'); if (v && k !== n) v.pause(); });
+    i = n; history.replaceState(null, '', '#' + (n + 1));
+    const el = slides[n], v = el.querySelector('video');
+    stage.dataset.mood = el.dataset.mood || '';
+    if (v) { v.currentTime = parseFloat(el.dataset.start || 0); v.play().catch(() => {}); }
+    notes.innerHTML = `<b>Slide ${n + 1}/${slides.length} · ${el.dataset.time}</b><br>${el.dataset.notes}`;
+    bar.style.width = ((n + 1) / slides.length * 100) + '%';
+    tick();
+  }
+  function tick() {
+    const s = t0 ? Math.floor((Date.now() - t0) / 1000) : 0;
+    hud.textContent = `${i + 1}/${slides.length}  ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} / 3:00`;
+  }
+  setInterval(tick, 500);
+  addEventListener('resize', fit);
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); if (!t0) t0 = Date.now(); show(Math.min(slides.length - 1, i + 1)); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) show(Math.max(0, i - 1));
+    else if (e.key === 'n' || e.key === 'N') notes.style.display = notes.style.display === 'block' ? 'none' : 'block';
+    else if (e.key === 't' || e.key === 'T') t0 = Date.now();
+    else if (e.key === 'f' || e.key === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    else if (e.key === 'k' || e.key === 'K') { const v = slides[i].querySelector('video'); if (v) v.paused ? v.play() : v.pause(); }
+  });
+  stage.addEventListener('click', () => { const v = slides[i].querySelector('video'); if (v) v.paused ? v.play() : v.pause(); });
+  fit(); show(i);
+</script>
+</body>
+</html>
