@@ -1,5 +1,5 @@
 import {
-  SEATED_POSE, ARMS, HAND_RELAX, HAND_FIST, BODY_DELTAS, FACE, MICRO, BEHAVIOR,
+  SEATED_POSE, ARMS, HAND_RELAX, HAND_REST, HAND_FIST, BODY_DELTAS, FACE, MICRO, BEHAVIOR,
   EMOTIONS, GAZES, GESTURES
 } from './config.js';
 
@@ -191,15 +191,19 @@ export class Affect {
         });
       }
     }
-    // Clenched hands (behavior.grip). Not with hands on the thighs, where a fist would dig into the legs.
-    const g = arms === 'crossed' || arms === 'clasped' ? Math.min(1, Math.max(0, grip || 0)) : 0;
-    if (g > 0) {
+    // Hands on the thighs lie flatter; clenched hands (behavior.grip) only with crossed or clasped arms,
+    // where a fist does not dig into the legs.
+    const resting = !(arms in ARMS) || arms === 'rest';
+    const g = resting ? 0 : Math.min(1, Math.max(0, grip || 0));
+    const shape = resting ? HAND_REST : g > 0 ? HAND_FIST : null;
+    const k = resting ? 1 : g;
+    if (shape) {
       for (const [side, sgn] of [['Left', -1], ['Right', 1]]) {
-        for (const [finger, curl] of Object.entries(HAND_FIST)) {
+        for (const [finger, curl] of Object.entries(shape)) {
           curl.forEach((c, i) => {
             const p = base[`${side}Hand${finger}${i + 1}.rotation`];
             if (!p) return;
-            if (finger === 'Thumb') p.z += sgn * c * g; else p.x += c * g;
+            if (finger === 'Thumb') p.z += sgn * c * k; else p.x += c * k;
           });
         }
       }

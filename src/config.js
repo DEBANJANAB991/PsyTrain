@@ -163,12 +163,14 @@ export const ARMS = {
   rest: {
     'LeftShoulder.rotation': { x: 1.618, y: -0.115, z: -1.568 },
     'RightShoulder.rotation': { x: 1.618, y: 0.115, z: 1.568 },
-    'LeftArm.rotation': { x: 1.257, y: 0.622, z: 0.113 },
-    'LeftForeArm.rotation': { x: -0.225, y: 0.092, z: 1.043 },
-    'LeftHand.rotation': { x: -0.617, y: 0.380, z: -0.224 },
-    'RightArm.rotation': { x: 1.257, y: -0.622, z: -0.113 },
-    'RightForeArm.rotation': { x: -0.225, y: -0.092, z: -1.043 },
-    'RightHand.rotation': { x: -0.617, y: -0.380, z: 0.224 }
+    // fitted numerically: palm, knuckles and fingertips all 1-8 mm off the thigh surface, fingers
+    // pointing towards the knee, palm facing down, hand over the top of the thigh
+    'LeftArm.rotation': { x: 1.169, y: 0.779, z: 0.105 },
+    'LeftForeArm.rotation': { x: -0.246, y: 0.100, z: 1.022 },
+    'LeftHand.rotation': { x: -0.753, y: 0.628, z: -0.081 },
+    'RightArm.rotation': { x: 1.169, y: -0.779, z: -0.105 },
+    'RightForeArm.rotation': { x: -0.246, y: -0.100, z: -1.022 },
+    'RightHand.rotation': { x: -0.753, y: -0.628, z: 0.081 }
   },
   // hands held together in the lap, one loosely over the other
   clasped: {
@@ -199,6 +201,16 @@ export const HAND_RELAX = {
   Ring:   [0.16, 0.20, 0.11],
   Pinky:  [0.18, 0.23, 0.12],
   Thumb:  [0.05, 0.07, 0.04]
+};
+// Hands lying on the thighs (arms 'rest'): change of curl (rad) at joints 1 / 2 / 3, negative = straighter.
+// The relaxed curl alone points the fingertips into the leg, and pushing them out of the leg lifts the
+// palm off the thigh, so resting fingers lie flatter along the leg.
+export const HAND_REST = {
+  Index:  [-0.215, -0.336, -0.134],
+  Middle: [-0.293, -0.336, -0.134],
+  Ring:   [-0.427, -0.336, -0.134],
+  Pinky:  [-0.533, -0.336, -0.134],
+  Thumb:  [-0.228, -0.078, -0.174]
 };
 // Clenched fist: extra curl (rad) on top of HAND_RELAX at behavior.grip = 1, scaled down for smaller grips.
 // Only used with crossed or clasped arms (affect._basePose): on the thighs a fist would dig into the legs.
@@ -377,7 +389,8 @@ export const BEHAVIOR = {
   // Tension reads through raised shoulders and restrained movement. Keeping each hand supported on a
   // thigh avoids the interwoven, unsupported fingers that made the old tense pose look deformed.
   tense:      { fidget: 0.40, footTap: 0.30, legBounce: 0.15, shift: 0.32, lookAround: 0.25, gazeStudent: 0.45, blink: 1.6, breath: 1.3, headMotion: 0.5, grip: 0.00, arms: 'rest' },
-  anxious:    { fidget: 0.95, footTap: 0.20, legBounce: 0.70, shift: 0.60, lookAround: 0.65, gazeStudent: 0.30, blink: 2.0, breath: 1.7, headMotion: 0.8, grip: 0.35, arms: 'clasped' },
+  // Hands on the thighs (thumb rubbing, small wrist shifts from fidget); the restlessness is in the legs.
+  anxious:    { fidget: 0.95, footTap: 0.35, legBounce: 0.85, shift: 0.60, lookAround: 0.65, gazeStudent: 0.30, blink: 2.0, breath: 1.7, headMotion: 0.8, grip: 0.00, arms: 'rest' },
   angry:      { fidget: 0.15, footTap: 0.55, legBounce: 0.10, shift: 0.20, lookAround: 0.05, gazeStudent: 0.95, blink: 0.5, breath: 1.4, headMotion: 0.3, grip: 1.00, arms: 'crossed' },
   sad:        { fidget: 0.10, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.15, blink: 1.2, breath: 0.8, headMotion: 0.2, grip: 0.00, arms: 'rest' },
   withdrawn:  { fidget: 0.15, footTap: 0.00, legBounce: 0.00, shift: 0.10, lookAround: 0.05, gazeStudent: 0.10, blink: 1.0, breath: 0.85, headMotion: 0.15, grip: 0.00, arms: 'crossed' },

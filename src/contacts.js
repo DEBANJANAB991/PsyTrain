@@ -142,46 +142,54 @@ export class Contacts {
       this.hands.push({ side, upper, fore, hand, samples, corrections, clear: -1 });
     }
     this.spine = ['Spine', 'Spine1', 'Spine2'].map(bone);
-    this.lapRef = this._authoredSpine();
+    this.lapRefs = {};
     this.ready = this.proxies.length > 0 && this.hands.length > 0 && this.spine.every(Boolean);
     this.vertexCount = this.proxies.reduce((sum, p) => sum + p.used, 0);
     return this.ready;
   }
 
-  /** Spine1-Spine2 chain of the authored seated pose (no emotion lean, no posture shift), relative to the hips. */
-  _authoredSpine() {
-    const props = this.affect?._basePose ? this.affect._basePose('rest') : {};
-    const q = new THREE.Quaternion();
-    for (const name of ['Spine', 'Spine1', 'Spine2']) {
-      const r = props[name + '.rotation'];
-      if (r) q.multiply(_q.setFromEuler(_e.set(r.x, r.y, r.z, 'XYZ')));
-    }
-    return q;
-  }
-
   /**
-   * Hands that rest in the lap belong to the lap, not to the chest. When an emotion or a posture shift leans
-   * the spine, turn each upper arm back by that extra lean, so the arm keeps its authored direction relative
-   * to the hips: leaning forward slides the hands along the thighs (as a person does) instead of pressing
-   * them into the legs. Crossed arms belong to the chest and move with it (weight 0).
+   * Hips -> shoulder chain of the authored seated pose (no emotion lean, raised shoulders or posture shift),
+   * one per side.
+   */
+  _authoredSpine(mode = 'rest') {
+    const props = this.affect?._basePose ? this.affect._basePose(mode) : {};
+    const ref = {};
+    for (const side of ['Left', 'Right']) {
+      const q = new THREE.Quaternion();
+      for (const name of ['Spine', 'Spine1', 'Spine2', side + 'Shoulder']) {
+        const r = props[name + '.rotation'];
+        if (r) q.multiply(_q.setFromEuler(_e.set(r.x, r.y, r.z, 'XYZ')));
+      }
+      ref[side] = q;
+    }
+    return ref;
+  }
+  /**
+   * Hands that rest in the lap belong to the lap, not to the chest. When an emotion, a posture shift, a shrug
+   * or breathing moves the spine or the shoulders, turn each upper arm back by that extra rotation, so the arm
+   * keeps its authored direction relative to the hips: leaning forward slides the hands along the thighs (as a
+   * person does) and raised shoulders do not lift the hands off the legs. Crossed arms belong to the chest
+   * and move with it (weight 0).
    */
   _followLap(dt) {
     const target = this.armMode === 'crossed' ? 0 : 1;
     this.lapWeight += (target - this.lapWeight) * (1 - Math.exp(-dt / 0.35));
     if (this.lapWeight < 1e-3) return;
-    _chain.identity();
-    for (const b of this.spine) _chain.multiply(b.quaternion);
-    _lean.copy(_chain).invert().multiply(this.lapRef);                     // C^-1 * R, in the chest frame
-    if (this.lapWeight < 0.999) _lean.slerp(_I, 1 - this.lapWeight);
+    const mode = this.armMode === 'crossed' ? this.previousArmMode || 'rest' : this.armMode;
+    const ref = this.lapRefs[mode] || (this.lapRefs[mode] = this._authoredSpine(mode));
     for (const hand of this.hands) {
       const shoulder = hand.upper.parent;                                    // LeftShoulder / RightShoulder
-      // Arm' = Sh^-1 * (C^-1 R) * Sh * Arm keeps the arm's orientation in the hips' frame
-      _loc.copy(shoulder.quaternion).invert().multiply(_lean).multiply(shoulder.quaternion);
-      hand.upper.quaternion.premultiply(_loc);
+      _chain.identity();
+      for (const b of this.spine) _chain.multiply(b.quaternion);
+      _chain.multiply(shoulder.quaternion);
+      // Arm' = (C^-1 R) * Arm, with C / R the live / authored hips -> shoulder chain
+      _lean.copy(_chain).invert().multiply(ref[hand.side]);
+      if (this.lapWeight < 0.999) _lean.slerp(_I, 1 - this.lapWeight);
+      hand.upper.quaternion.premultiply(_lean);
       hand.upper.updateMatrixWorld(true);
     }
   }
-
   _addToTable(proxy, p) {
     const axial = p.x * proxy.ax + p.y * proxy.ay + p.z * proxy.az;
     const ai = Math.floor(((axial / proxy.len) + 0.1) / 1.2 * AXIAL_BINS);
