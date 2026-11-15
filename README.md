@@ -184,8 +184,6 @@ The tests run the orchestrator end to end with a scripted model (auth, mode trig
 
 ## Credits
 
-**Team:** Harsh Khandelwal, Parisa Bastani, Debanjona Bhattacharjya, Andreas Weigert.
-
 Built on:
 
 - [TalkingHead](https://github.com/met4citizen/TalkingHead) by Mika Suominen (MIT) for the avatar face, lip-sync and skeleton. A patched copy is vendored in `src/vendor/talkinghead/`.
